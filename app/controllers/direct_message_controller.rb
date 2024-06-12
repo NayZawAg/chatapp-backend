@@ -1,3 +1,7 @@
+require 'base64'
+require 'digest'
+require 'aws-sdk-s3'
+require 'mime/types'
 
   class DirectMessageController < ApplicationController
     def index
@@ -5,98 +9,190 @@
 
       render json: @t_direct_message
     end
-      def show
-        #check unlogin user
-      #   checkuser
+    def show
+        # Check if the receive user ID is provided
         if params[:s_user_id].nil?
-          render json: { error: 'Receive user not existed!'}
-          # redirect_to home_url
-        else
-          @t_direct_message = TDirectMessage.new
-          @t_direct_message.directmsg = params[:message]
-          @t_direct_message.send_user_id = params[:user_id]
-          @t_direct_message.receive_user_id = params[:s_user_id]
-          @t_direct_message.read_status = 0
-          @t_direct_message.save
-         
-          MUser.where(id: params[:s_user_id]).update_all(remember_digest: "1")
-          @user = MUser.find_by(id: params[:s_user_id])
-        
-          render json: @t_direct_message
+          render json: { error: 'Receive user not exists!' }, status: :bad_request
+          return
         end
-      end
-        def showthread
-          #check unlogin user
-          # checkuser
-          if params[:s_direct_message_id].nil?
-            unless params[:s_user_id].nil?
-              @user = MUser.find_by(id: params[:s_user_id])
-              render json: @user
+      
+        file_records = []
+      
+        # Check if file parameters exist and process each file
+        if params[:files].present?
+          params[:files].each do |file|
+            image_mime = file[:mime]
+            image_data = decode(file[:data])
+      
+            # Validate MIME type
+            if MIME::Types[image_mime].empty?
+              render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
+              return
             end
-          elsif params[:s_user_id].nil?
-            render json: { error: 'Receive user not existed!'}
+      
+            file_extension = extension(image_mime)
+            file_url = put_s3(image_data, file_extension, image_mime)
+            file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: params[:user_id] }
+          end
+        end
+      
+        # Create a new direct message
+        @t_direct_message = TDirectMessage.new(
+          directmsg: params[:message],
+          send_user_id: params[:user_id],
+          receive_user_id: params[:s_user_id],
+          read_status: 0
+        )
+      
+        if @t_direct_message.save
+          # Save file records with the direct message ID
+          file_records.each do |file_record|
+            file_record[:t_direct_message_id] = @t_direct_message.id
+            TDirectMessageFile.create(file_record)
+          end
+      
+          # Update remember_digest for the receiving user
+          MUser.where(id: params[:s_user_id]).update_all(remember_digest: "1")
+      
+          render json: {
+            t_direct_message: @t_direct_message,
+            t_file_upload: file_records
+          }, status: :created
+        else
+          render json: @t_direct_message.errors, status: :unprocessable_entity
+        end
+    end
+
+    def showthread
+        # Check if the receive user ID is provided
+        if params[:s_direct_message_id].nil?
+          if params[:s_user_id].present?
+            @user = MUser.find_by(id: params[:s_user_id])
+            render json: @user
+          end
+        elsif params[:s_user_id].nil?
+          render json: { error: 'Receive user not existed!' }
+        else
+          @t_direct_message = TDirectMessage.find_by(id: params[:s_direct_message_id])
+      
+          if @t_direct_message.nil?
+            if params[:s_user_id].present?
+              @user = MUser.find_by(id: params[:s_user_id])
+              render json: @t_direct_message
+            end
           else
-            @t_direct_message = TDirectMessage.find_by(id: params[:s_direct_message_id])
-            if @t_direct_message.nil?
-              unless params[:s_user_id].nil?
-                @user = MUser.find_by(id: params[:s_user_id])
-                render json: @t_direct_message
-              else
-               
+            file_records = []
+      
+            if params[:files].present?
+              params[:files].each do |file|
+                image_mime = file[:mime]
+                image_data = decode(file[:data])
+      
+                if MIME::Types[image_mime].empty?
+                  render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
+                  return
+                end
+      
+                file_extension = extension(image_mime)
+                file_url = put_s3(image_data, file_extension, image_mime)
+                file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: params[:user_id] }
               end
-            else
-              @t_direct_thread = TDirectThread.new
-              @t_direct_thread.directthreadmsg = params[:message]
-              @t_direct_thread.t_direct_message_id = params[:s_direct_message_id]
-              @t_direct_thread.m_user_id = params[:user_id]
-              @t_direct_thread.read_status = 0
-              @t_direct_thread.save
+            end
+      
+            @t_direct_thread = TDirectThread.new(
+              directthreadmsg: params[:message],
+              t_direct_message_id: params[:s_direct_message_id],
+              m_user_id: params[:user_id],
+              read_status: 0
+            )
+      
+            if @t_direct_thread.save
+              file_records.each do |file_record|
+                file_record[:t_direct_thread_id] = @t_direct_thread.id
+                TDirectThreadMsgFile.create(file_record)
+              end
+      
               MUser.where(id: params[:s_user_id]).update_all(remember_digest: "1")
-              
+      
+              render json: {
+                t_direct_thread_message: @t_direct_thread,
+                t_thread_file_upload: file_records
+              }, status: :created
+            else
+              render json: @t_direct_thread.errors, status: :unprocessable_entity
             end
           end
         end
-        def deletemsg
+    end
+
+    def deletemsg
          
           
-          directthreads = TDirectThread.where(t_direct_message_id: params[:id])
-          directthreads.each do |directthread|
-            TDirectStarThread.where(directthreadid: directthread.id).destroy_all
-            directthread.destroy
+        directthreads = TDirectThread.where(t_direct_message_id: params[:id])
+        directthreads.each do |directthread|
+          TDirectStarThread.where(directthreadid: directthread.id).destroy_all
+          directthread.destroy
+        end
+      
+        TDirectStarMsg.where(directmsgid: params[:id]).destroy_all
+        TDirectMessage.find_by(id: params[:id]).destroy
+        render json: { success:'Successfully Delete Messages'}
+    end
+
+    def deletethread
+        #check unlogin user
+        # checkuser
+    
+        if params[:s_direct_message_id].nil?
+          unless params[:s_user_id].nil?
+            @user = MUser.find_by(id: params[:s_user_id])
+            render json: { error:'Direct Message Not found'}
           end
-        
-          TDirectStarMsg.where(directmsgid: params[:id]).destroy_all
-          TDirectMessage.find_by(id: params[:id]).destroy
+        elsif params[:s_user_id].nil?
+          render json: { error:'User not found'}
+        else
+          TDirectStarThread.where(directthreadid: params[:id]).destroy_all
+          TDirectThread.find_by(id: params[:id]).destroy
+    
+          @t_direct_message = TDirectMessage.find_by(id: session[:s_direct_message_id])
           render json: { success:'Successfully Delete Messages'}
         end
-        
-      
-        def deletethread
-          #check unlogin user
-          # checkuser
-      
-          if params[:s_direct_message_id].nil?
-            unless params[:s_user_id].nil?
-              @user = MUser.find_by(id: params[:s_user_id])
-              render json: { error:'Direct Message Not found'}
-            end
-          elsif params[:s_user_id].nil?
-            render json: { error:'User not found'}
-          else
-            TDirectStarThread.where(directthreadid: params[:id]).destroy_all
-            TDirectThread.find_by(id: params[:id]).destroy
-      
-            @t_direct_message = TDirectMessage.find_by(id: session[:s_direct_message_id])
-            render json: { success:'Successfully Delete Messages'}
-          end
-        end
+    end
 
-        def  showMessage 
-          @second_user = params[:second_user] 
+    def  showMessage 
+        @second_user = params[:second_user] 
 
-          retrieve_direct_message(@second_user)
-        end
-        
-  end
+        retrieve_direct_message(@second_user)
+    end
+
+    private
+
+    def decode(data)
+        Base64.decode64(data)
+    end
+    
+    def extension(mime_type)
+        mime = MIME::Types[mime_type].first
+        raise "Unsupported Content-Type" unless mime
+        mime.extensions.first ? ".#{mime.extensions.first}" : raise("Unknown extension for MIME type")
+    end
+    
+    def put_s3(data, extension, mime_type)
+        file_name = Digest::SHA1.hexdigest(data) + extension
+        s3 = Aws::S3::Resource.new
+        bucket = s3.bucket("rails-blog-minio")
+        obj = bucket.object("files/#{file_name}")
+    
+        obj.put(
+          acl: "public-read",
+          body: data,
+          content_type: mime_type,
+          content_disposition: "inline"
+        )
+    
+        obj.public_url
+    end
+  end      
+
 
 

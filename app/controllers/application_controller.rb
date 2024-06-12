@@ -46,9 +46,10 @@ class ApplicationController < ActionController::API
       "(t_direct_messages.receive_user_id = ? and t_direct_messages.send_user_id = ? ) AND (t_direct_messages.receive_user_id = ? and t_direct_messages.send_user_id = ? )", @m_user.id,  params[:id],  params[:id], @m_user.id
     ).where.not(m_user_id: @m_user.id, read_status: true).update_all(read_status: true)
     @s_user = MUser.find_by(id: params[:id])
-    @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at  as created_at,
+    @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at  as created_at,t_direct_message_files.file as file_url,
                                           (select count(*) from t_direct_threads where t_direct_threads.t_direct_message_id = t_direct_messages.id) as count")
                                         .joins("INNER JOIN m_users ON m_users.id = t_direct_messages.send_user_id")
+                                        .joins("LEFT JOIN t_direct_message_files ON t_direct_message_files.t_direct_message_id = t_direct_messages.id")
                                         .where("(t_direct_messages.receive_user_id = ? AND t_direct_messages.send_user_id = ? )
                                           OR (t_direct_messages.receive_user_id = ? AND t_direct_messages.send_user_id = ? )",
                                           @m_user.id,  params[:id],  params[:id], @m_user.id).order(created_at: :desc)
@@ -74,9 +75,10 @@ class ApplicationController < ActionController::API
     @send_user = MUser.find_by(id: @t_direct_message.send_user_id)
     TDirectThread.where.not(m_user_id: @current_user, read_status: false).update_all(read_status: true)
 
-    @t_direct_threads = TDirectThread.select("name, directthreadmsg, t_direct_threads.id as id, t_direct_threads.created_at  as created_at")
+    @t_direct_threads = TDirectThread.select("name, directthreadmsg, t_direct_threads.id as id, t_direct_threads.created_at  as created_at, t_direct_thread_msg_files.file as file_url")
                 .joins("INNER JOIN t_direct_messages ON t_direct_messages.id = t_direct_threads.t_direct_message_id
                         INNER JOIN m_users ON m_users.id = t_direct_threads.m_user_id")
+                .joins("LEFT  JOIN t_direct_thread_msg_files ON t_direct_thread_msg_files.t_direct_thread_id = t_direct_threads.id")
                 .where("t_direct_threads.t_direct_message_id = ?", direct_message_id).order(id: :asc)
     
     @temp_direct_star_thread_msgids = TDirectStarThread.select("directthreadid").where("userid = ?", @current_user)
@@ -101,10 +103,11 @@ class ApplicationController < ActionController::API
 
     TUserChannel.where(channelid: @s_channel, userid:  @current_user).update_all(message_count: 0, unread_channel_message: nil)
 
-    @t_group_messages = TGroupMessage.select("name, groupmsg, t_group_messages.id as id, t_group_messages.created_at as created_at, t_group_messages.m_user_id as send_user_id,
-                                            (select count(*) from t_group_threads where t_group_threads.t_group_message_id = t_group_messages.id) as count ")
-                                      .joins("INNER JOIN m_users ON m_users.id = t_group_messages.m_user_id")
-                                      .where("m_channel_id = ? ", @s_channel).order(created_at: :desc).limit(10)
+    @t_group_messages = TGroupMessage.select("name, groupmsg, t_group_messages.id as id, t_group_messages.created_at as created_at, t_group_messages.m_user_id as send_user_id,t_group_msg_files.file as file_url,
+                        (select count(*) from t_group_threads where t_group_threads.t_group_message_id = t_group_messages.id) as count ")
+                        .joins("INNER JOIN m_users ON m_users.id = t_group_messages.m_user_id")
+                        .joins("LEFT JOIN t_group_msg_files ON t_group_msg_files.t_group_message_id = t_group_messages.id")
+                        .where("m_channel_id = ? ", @s_channel).order(created_at: :desc).limit(10)
     
     @t_group_messages = @t_group_messages.reverse
     @temp_group_star_msgids = TGroupStarMsg.select("groupmsgid").where("userid = ?",  @current_user)
@@ -146,9 +149,11 @@ class ApplicationController < ActionController::API
     @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
     @send_user = MUser.find_by(id: @t_group_message.m_user_id)
 
-    @t_group_threads = TGroupThread.select("name, groupthreadmsg, t_group_threads.id as id, t_group_threads.created_at  as created_at, t_group_threads.m_user_id as send_user_id")
-                    .joins("INNER JOIN t_group_messages ON t_group_messages.id = t_group_threads.t_group_message_id
-                          INNER JOIN m_users ON m_users.id = t_group_threads.m_user_id").where("t_group_threads.t_group_message_id = ?", params[:s_group_message_id]).order(id: :asc)
+    @t_group_threads = TGroupThread.select("name, groupthreadmsg, t_group_threads.id as id, t_group_threads.created_at  as created_at, t_group_threads.m_user_id as send_user_id, t_group_thread_msg_files.file as file_url")
+    .joins("INNER JOIN t_group_messages ON t_group_messages.id = t_group_threads.t_group_message_id
+          INNER JOIN m_users ON m_users.id = t_group_threads.m_user_id")
+          .joins("LEFT JOIN t_group_thread_msg_files ON t_group_thread_msg_files.t_group_thread_id = t_group_threads.id")
+          .where("t_group_threads.t_group_message_id = ?", params[:s_group_message_id]).order(id: :asc)
     
     @temp_group_star_thread_msgids = TGroupStarThread.select("groupthreadid").where("userid = ?", @current_user)
 
