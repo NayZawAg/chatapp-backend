@@ -1,43 +1,42 @@
 class TGroupStarThreadController < ApplicationController
   def create
-    #check unlogin user
-    # checkuser
     @m_user = MUser.find_by(id: @current_user)
+
     if params[:s_group_message_id].nil?
       unless params[:s_channel_id].nil?
         @m_channel = MChannel.find_by(id: params[:s_channel_id])
-        render json: { message: 'go to home'}
+        render json: { message: 'Channel not found' }, status: :not_found
       end
     elsif params[:s_channel_id].nil?
-      render json: { message: 'go to channel'}
+      render json: { message: 'Channel ID is missing' }, status: :not_found
     elsif MChannel.find_by(id: params[:s_channel_id]).nil?
-      render json: { message: 'go to home'}
+      render json: { message: 'Channel not found' }, status: :unprocessable_entity
     else
       @t_group_star_thread = TGroupStarThread.new
       @t_group_star_thread.userid = @m_user.id
       @t_group_star_thread.groupthreadid = params[:id]
       @t_group_star_thread.save
       @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
-      render json: { message: 'create star success '}
+      render json: { message: 'Create star successful' }, status: :ok
     end
   end
+
   def destroy
-    #check unlogin user
-    # checkuser
     @m_user = MUser.find_by(id: @current_user)
+
     if params[:s_group_message_id].nil?
       unless params[:s_channel_id].nil?
         @m_channel = MChannel.find_by(id: params[:s_channel_id])
-        render json: { message: 'go to channel'}
+        render json: { message: 'Channel not found' }, status: :unprocessable_entity
       end
     elsif params[:s_channel_id].nil?
-      render json: { message: 'go to home'}
+      render json: { message: 'Channel ID is missing' }, status: :not_found
     elsif MChannel.find_by(id: params[:s_channel_id]).nil?
-      render json: { message: 'go to home'}
+      render json: { message: 'Channel not found' }, status: :unprocessable_entity
     else
       TGroupStarThread.find_by(groupthreadid: params[:id], userid: @m_user.id).destroy
       @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
-      render json: { message: 'delete star success'}
+      render json: { message: 'Delete star successful' }, status: :ok
     end
   end
 end

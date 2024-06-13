@@ -14,4 +14,11 @@ class TGroupMessage < ApplicationRecord
                                     dependent:   :destroy
   
   has_many :t_group_messages, through: :passive_relationships, source: :t_group_message
+  has_many :passive_relationships, class_name:  "TGroupMsgFile",
+                                    foreign_key: "groupmsgid",
+                                    dependent:   :destroy
+
+
+                                    
+
 end
