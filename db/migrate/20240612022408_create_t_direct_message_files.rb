@@ -4,6 +4,7 @@ class CreateTDirectMessageFiles < ActiveRecord::Migration[7.1]
       t.string :file
       t.string :mime_type
       t.string :extension
+      t.integer :diirectmsgid
       t.references :t_direct_message, foreign_key: true
       t.references :m_user, foreign_key: true
 
