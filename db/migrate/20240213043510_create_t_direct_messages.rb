@@ -5,7 +5,6 @@ class CreateTDirectMessages < ActiveRecord::Migration[5.2]
       t.boolean :read_status
       t.integer :send_user_id
       t.integer :receive_user_id
-      
 
       t.timestamps
     end

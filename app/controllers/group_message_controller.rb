@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'base64'
 require 'digest'
 require 'aws-sdk-s3'
@@ -40,68 +42,66 @@ class GroupMessageController < ApplicationController
       m_channel_id: params[:s_channel_id]
     )
 
-    if @t_group_message.save
-      file_records.each do |file_record|
-        file_record[:t_group_message_id] = @t_group_message.id
-        file_record[:groupmsgid] = @t_group_message.id
-        TGroupMsgFile.create(file_record)
-      end
+    return unless @t_group_message.save
 
-      mention_name = params[:mention_name]
-
-      unless mention_name.nil?
-        mention_name.each do |u_mention|
-          u_mention[0] = ''
-          @mention_user = MUser.find_by(name: u_mention)
-          @t_group_mention_msg = TGroupMentionMsg.new(
-            userid: @mention_user.id,
-            groupmsgid: @t_group_message.id
-          )
-          @t_group_mention_msg.save
-        end
-      end
-
-      @t_user_channels = TUserChannel.where(channelid: params[:s_channel_id])
-
-      @t_user_channels.each do |u_channel|
-        if u_channel.userid != @m_user.id
-          u_channel.message_count += 1
-          temp_msgid = ""
-
-          unless u_channel.unread_channel_message.nil?
-            u_channel.unread_channel_message.split(",").each do |u_message|
-              temp_msgid += u_message
-              temp_msgid += ","
-            end
-          end
-
-          temp_msgid += @t_group_message.id.to_s
-          u_channel.unread_channel_message = temp_msgid
-
-          TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count, unread_channel_message: u_channel.unread_channel_message)
-        end
-      end
-
-      MUser.joins("INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id 
-                   INNER JOIN m_channels ON m_channels.id = t_user_channels.channelid")
-           .where("m_channels.m_workspace_id = ? AND m_channels.id = ?",
-                  @m_workspace.id, params[:s_channel_id])
-           .where.not("m_users.id = ?", @m_user.id)
-           .update_all(remember_digest: "1")
-
-      @m_channel_users = MUser.joins("INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id 
-                                       INNER JOIN m_channels ON m_channels.id = t_user_channels.channelid")
-                               .where("m_users.member_status = true AND m_channels.m_workspace_id = ? AND m_channels.id = ?",
-                                      @m_workspace.id, params[:s_channel_id])
-                               .where.not("m_users.id = ?", @m_user.id)
-
-      @m_channel_users.each do |user|
-        MUser.where(id: user.id).update_all(remember_digest: "1")
-      end
-
-      @m_channel = MChannel.find_by(id: params[:s_channel_id])
-      render json: { t_group_message: @t_group_message, mention: mention_name, t_group_msg_file: file_records }
+    file_records.each do |file_record|
+      file_record[:t_group_message_id] = @t_group_message.id
+      file_record[:groupmsgid] = @t_group_message.id
+      TGroupMsgFile.create(file_record)
     end
+
+    mention_name = params[:mention_name]
+
+    unless mention_name.nil? || (mention_name = '')
+      mention_name.each do |u_mention|
+        u_mention[0] = ''
+        @mention_user = MUser.find_by(name: u_mention)
+        @t_group_mention_msg = TGroupMentionMsg.new(
+          userid: @mention_user.id,
+          groupmsgid: @t_group_message.id
+        )
+        @t_group_mention_msg.save
+      end
+    end
+
+    @t_user_channels = TUserChannel.where(channelid: params[:s_channel_id])
+
+    @t_user_channels.each do |u_channel|
+      next unless u_channel.userid != @m_user.id
+
+      u_channel.message_count = u_channel.message_count + 1
+      temp_msgid = ''
+
+      u_channel.unread_channel_message&.split(',')&.each do |u_message|
+        temp_msgid += u_message
+        temp_msgid += ','
+      end
+      temp_msgid += @t_group_message.id.to_s
+
+      u_channel.unread_channel_message = temp_msgid
+      TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count,
+                                                      unread_channel_message: u_channel.unread_channel_message)
+    end
+
+    MUser.joins("INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id
+                   INNER JOIN m_channels ON m_channels.id = t_user_channels.channelid")
+         .where('m_channels.m_workspace_id = ? AND m_channels.id = ?',
+                @m_workspace.id, params[:s_channel_id])
+         .where.not('m_users.id = ?', @m_user.id)
+         .update_all(remember_digest: '1')
+
+    @m_channel_users = MUser.joins("INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id
+                                       INNER JOIN m_channels ON m_channels.id = t_user_channels.channelid")
+                            .where('m_users.member_status = true AND m_channels.m_workspace_id = ? AND m_channels.id = ?',
+                                   @m_workspace.id, params[:s_channel_id])
+                            .where.not('m_users.id = ?', @m_user.id)
+
+    @m_channel_users.each do |user|
+      MUser.where(id: user.id).update_all(remember_digest: '1')
+    end
+
+    @m_channel = MChannel.find_by(id: params[:s_channel_id])
+    render json: { t_group_message: @t_group_message, mention: mention_name, t_group_msg_file: file_records }
   end
 
   def showthread
@@ -109,9 +109,7 @@ class GroupMessageController < ApplicationController
     @m_workspace = MWorkspace.find_by(id: @current_workspace)
 
     if params[:s_group_message_id].nil?
-      unless params[:s_channel_id].nil?
-        @m_channel = MChannel.find_by(id: params[:s_channel_id])
-      end
+      @m_channel = MChannel.find_by(id: params[:s_channel_id]) unless params[:s_channel_id].nil?
     elsif params[:s_channel_id].nil?
       render json: { message: 'Channel ID missing' }
     elsif MChannel.find_by(id: params[:s_channel_id]).nil?
@@ -120,10 +118,10 @@ class GroupMessageController < ApplicationController
       @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
 
       if @t_group_message.nil?
-        unless params[:s_channel_id].nil?
-          @m_channel = MChannel.find_by(id: params[:s_channel_id])
-        else
+        if params[:s_channel_id].nil?
           render json: { message: 'Channel not found!' }
+        else
+          @m_channel = MChannel.find_by(id: params[:s_channel_id])
         end
       else
         file_records = []
@@ -132,7 +130,7 @@ class GroupMessageController < ApplicationController
           params[:files].each do |file|
             image_mime = file[:mime]
             image_data = decode(file[:data])
-            
+
             if MIME::Types[image_mime].empty?
               render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
               return
@@ -159,7 +157,7 @@ class GroupMessageController < ApplicationController
 
           mention_name = params[:mention_name]
 
-          unless mention_name.nil?
+          unless mention_name.nil? || (mention_name = '')
             mention_name.each do |u_mention|
               u_mention[0] = ''
               @mention_user = MUser.find_by(name: u_mention)
@@ -174,43 +172,38 @@ class GroupMessageController < ApplicationController
           @t_user_channels = TUserChannel.where(channelid: params[:s_channel_id])
 
           @t_user_channels.each do |u_channel|
-            if u_channel.userid != @m_user.id
-              u_channel.message_count += 1
-              temp_msgid = ""
+            next unless u_channel.userid != @m_user.id
 
-              unless u_channel.unread_channel_message.nil?
-                arr_msgid = u_channel.unread_channel_message.split(",")
-                unless arr_msgid.include? params[:s_group_message_id].to_s
-                  u_channel.unread_channel_message.split(",").each do |u_message|
-                    temp_msgid += u_message
-                    temp_msgid += ","
-                  end
-                  u_channel.unread_channel_message = temp_msgid
+            u_channel.message_count = u_channel.message_count + 1
+            temp_msgid = ''
+            unless u_channel.unread_thread_message.nil?
+              arr_msgid = u_channel.unread_thread_message.split(',')
+              unless arr_msgid.include? params[:s_group_message_id].to_s
+                u_channel.unread_thread_message.split(',').each do |u_message|
+                  temp_msgid += u_message
+                  temp_msgid += ','
                 end
               end
-
-              temp_msgid += params[:s_group_message_id].to_s
-
-              TUserChannel.where(id: u_channel.id).update_all(
-                message_count: u_channel.message_count,
-                unread_channel_message: u_channel.unread_channel_message
-              )
             end
+            temp_msgid += @t_group_thread.id.to_s
+            u_channel.unread_thread_message = temp_msgid
+            TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count,
+                                                            unread_thread_message: u_channel.unread_thread_message)
           end
 
-          MUser.joins("INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id")
-               .where("t_user_channels.id = ?", params[:s_channel_id])
-               .where.not("m_users.id = ?", @m_user.id)
-               .update_all(remember_digest: "1")
+          MUser.joins('INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id')
+               .where('t_user_channels.id = ?', params[:s_channel_id])
+               .where.not('m_users.id = ?', @m_user.id)
+               .update_all(remember_digest: '1')
 
           @m_channel_users = MUser.joins("INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id
                                           INNER JOIN m_channels ON m_channels.id = t_user_channels.channelid")
-                                  .where("m_users.member_status = true AND m_channels.m_workspace_id = ? AND m_channels.id = ?",
+                                  .where('m_users.member_status = true AND m_channels.m_workspace_id = ? AND m_channels.id = ?',
                                          @m_workspace.id, params[:s_channel_id])
-                                  .where.not("m_users.id = ?", @m_user.id)
+                                  .where.not('m_users.id = ?', @m_user.id)
 
           @m_channel_users.each do |user|
-            MUser.where(id: user.id).update_all(remember_digest: "1")
+            MUser.where(id: user.id).update_all(remember_digest: '1')
           end
 
           @m_channel = MChannel.find_by(id: params[:s_channel_id])
@@ -232,7 +225,7 @@ class GroupMessageController < ApplicationController
     elsif MChannel.find_by(id: params[:s_channel_id]).nil?
       render json: { error: 'Channel not found' }
     else
-      gpthread = TGroupThread.select("id").where(t_group_message_id: params[:id])
+      gpthread = TGroupThread.select('id').where(t_group_message_id: params[:id])
       gpthread.each do |gpthread|
         TGroupStarThread.where(groupthreadid: gpthread.id).destroy_all
         TGroupMentionThread.where(groupthreadid: gpthread.id).destroy_all
@@ -246,13 +239,13 @@ class GroupMessageController < ApplicationController
       TGroupMessage.find_by(id: params[:id]).delete
       @t_user_channels = TUserChannel.where(channelid: params[:s_channel_id])
       @t_user_channels.each do |u_channel|
-        if u_channel.userid != @m_user.id
-          u_channel.message_count -= (gpthread.size + 1)
-          if u_channel.message_count < 0
-            TUserChannel.where(id: u_channel.id).update_all(message_count: 0)
-          else
-            TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count)
-          end
+        next unless u_channel.userid != @m_user.id
+
+        u_channel.message_count -= (gpthread.size + 1)
+        if u_channel.message_count.negative?
+          TUserChannel.where(id: u_channel.id).update_all(message_count: 0)
+        else
+          TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count)
         end
       end
 
@@ -279,14 +272,10 @@ class GroupMessageController < ApplicationController
 
       @t_user_channels = TUserChannel.where(channelid: params[:s_channel_id])
       @t_user_channels.each do |u_channel|
-        if u_channel.userid != @m_user.id
-          u_channel.message_count -= 1
-          if u_channel.message_count < 0
-            TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count)
-          else
-            TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count)
-          end
-        end
+        next unless u_channel.userid != @m_user.id
+
+        u_channel.message_count -= 1
+        TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count)
       end
 
       @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
@@ -302,21 +291,22 @@ class GroupMessageController < ApplicationController
 
   def extension(mime_type)
     mime = MIME::Types[mime_type].first
-    raise "Unsupported Content-Type" unless mime
-    mime.extensions.first ? ".#{mime.extensions.first}" : raise("Unknown extension for MIME type")
+    raise 'Unsupported Content-Type' unless mime
+
+    mime.extensions.first ? ".#{mime.extensions.first}" : raise('Unknown extension for MIME type')
   end
 
   def put_s3(data, extension, mime_type)
     file_name = Digest::SHA1.hexdigest(data) + extension
     s3 = Aws::S3::Resource.new
-    bucket = s3.bucket("rails-blog-minio")
+    bucket = s3.bucket('rails-blog-minio')
     obj = bucket.object("files/#{file_name}")
 
     obj.put(
-      acl: "public-read",
+      acl: 'public-read',
       body: data,
       content_type: mime_type,
-      content_disposition: "inline"
+      content_disposition: 'inline'
     )
 
     obj.public_url
