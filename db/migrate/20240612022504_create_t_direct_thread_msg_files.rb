@@ -1,7 +1,6 @@
 class CreateTDirectThreadMsgFiles < ActiveRecord::Migration[7.1]
   def change
     create_table :t_direct_thread_msg_files do |t|
-
       t.string :file
       t.string :mime_type
       t.string :extension
@@ -11,7 +10,5 @@ class CreateTDirectThreadMsgFiles < ActiveRecord::Migration[7.1]
 
       t.timestamps
     end
-    
-
   end
 end
