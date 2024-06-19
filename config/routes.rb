@@ -77,6 +77,19 @@ Rails.application.routes.draw do
   get 'main' =>'m_users#mainPage'
   get 'groupmsgs/:channel_id' => 'm_channels#show', as: 'group_message'
 
+  # direct message edit
+  get '/directmsg/edit/:id' => 'direct_message#edit'
+  post '/directmsg/edit' => 'direct_message#update'
+  # direct thread edit
+  get '/directthreadmsg/edit/:id' => 'direct_message#edit_thread'
+  post '/directthreadmsg/edit' => 'direct_message#update_thread'
+  # group message edit
+  get '/groupmsg/edit/:id' => 'group_message#edit'
+  post '/groupmsg/edit' => 'group_message#update'
+  # group thread edit
+  get '/groupthreadmsg/edit/:id' => 'group_message#edit_thread'
+  post '/groupthreadmsg/edit' => 'group_message#update_thread'
+
   resources :m_workspaces
   resources :m_users
   resources :m_channels
