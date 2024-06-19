@@ -283,6 +283,36 @@ class GroupMessageController < ApplicationController
     end
   end
 
+  # group message edit
+  def edit
+    @t_group_message = TGroupMessage.find_by(id: params[:id])
+    render json: { message: @t_group_message}, status: :ok
+  end
+
+  # group message update
+  def update
+    t_group_message = TGroupMessage.where(id: params[:id]).first
+    message = params[:message]
+    TGroupMessage.where(id: t_group_message.id).update_all(groupmsg: message)
+
+    render json: {message: 'group message updated successfully.'}, status: :ok
+  end
+
+  # group message thread edit
+  def edit_thread
+    @t_group_thread = TGroupThread.find_by(id: params[:id])
+    render json: {message: @t_group_thread}, status: :ok
+  end
+
+  # group message thread update
+  def update_thread
+    t_group_thread = TGroupThread.where(id: params[:id]).first
+    message = params[:message]
+    TGroupThread.where(id: t_group_thread.id).update_all(groupthreadmsg: message)
+    
+    render json: {message: 'group thread updated successfully.'}, status: :ok
+  end
+
   private
 
   def decode(data)
