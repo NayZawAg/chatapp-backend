@@ -79,16 +79,19 @@ Rails.application.routes.draw do
 
   # direct message edit
   get '/directmsg/edit/:id' => 'direct_message#edit'
-  post '/directmsg/edit' => 'direct_message#update'
+  post 'update_directmsg' => 'direct_message#update'
   # direct thread edit
   get '/directthreadmsg/edit/:id' => 'direct_message#edit_thread'
-  post '/directthreadmsg/edit' => 'direct_message#update_thread'
+  post 'update_directthreadmsg' => 'direct_message#update_thread'
   # group message edit
   get '/groupmsg/edit/:id' => 'group_message#edit'
-  post '/groupmsg/edit' => 'group_message#update'
+  post 'update_groupmsg' => 'group_message#update'
   # group thread edit
   get '/groupthreadmsg/edit/:id' => 'group_message#edit_thread'
-  post '/groupthreadmsg/edit' => 'group_message#update_thread'
+  post 'update_groupthreadmsg' => 'group_message#update_thread'
+
+  # user name edit
+  patch "/m_users/edit_username" => "m_users#edit_username"
 
   resources :m_workspaces
   resources :m_users
