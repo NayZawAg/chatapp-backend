@@ -214,6 +214,17 @@ class MUsersController < ApplicationController
     end
   end
 
+  # user名変更
+  def edit_username
+    username = params[:username]
+    m_user = MUser.where(id: @current_user.id).first
+    m_user.update!(name: username)
+    render json: { message: "Change Username Successful." }, status: :ok
+  rescue ActiveRecord::RecordInvalid => e
+    logger.error("exception: #{e.message}")
+    render json: { error_message: e.record.errors.messages}, status: :unprocessable_entity
+  end
+
   private
 
   def user_params

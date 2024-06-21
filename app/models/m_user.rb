@@ -46,8 +46,8 @@ class MUser < ApplicationRecord
   has_many :m_users, through: :active_relationships, source: :m_user
 
   before_save   :downcase_email
-  validates :remember_digest,  presence: true, length: { maximum: 50 }, uniqueness: { case_sensitive: false }
-  validates :profile_image,  presence: true, length: { maximum: 50 }
+  validates :remember_digest,  presence: true, length: { maximum: 50 }, uniqueness: { case_sensitive: false }, on: :create
+  validates :profile_image,  presence: true, length: { maximum: 50 }, on: :create
   validates :name,  presence: true, length: { maximum: 50 }, uniqueness: { case_sensitive: false }
   VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
   validates :email, presence: true, length: { maximum: 255 },
