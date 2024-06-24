@@ -110,7 +110,8 @@ class ApplicationController < ActionController::API
                                    @current_workspace, @s_channel)
                             .order("t_user_channels.created_at": :asc)
 
-    TUserChannel.where(channelid: @s_channel, userid: @current_user).update_all(message_count: 0, unread_channel_message: nil)
+    TUserChannel.where(channelid: @s_channel, userid: @current_user).update_all(message_count: 0, 
+                                                                                unread_channel_message: nil, unread_thread_message: nil)
 
     @t_group_messages = TGroupMessage.select("name, groupmsg, t_group_messages.id as id, t_group_messages.created_at as created_at, 
                                               t_group_messages.m_user_id as send_user_id, t_group_msg_files.file as file_url,
