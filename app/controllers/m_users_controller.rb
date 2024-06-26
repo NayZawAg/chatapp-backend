@@ -215,7 +215,7 @@ class MUsersController < ApplicationController
         render json: { message: "Change Password Successful." }, status: :ok
       end
     else
-      render json: { error: "Your old password is wrong." }, status: :ok
+      render json: { error: "Your current password is wrong." }, status: :ok
     end
   end
 

@@ -156,32 +156,32 @@ class DirectMessageController < ApplicationController
 
   # direct message edit
   def edit
-    @t_group_message = TGroupMessage.find_by(id: params[:id])
-    render json: { message: @t_group_message}, status: :ok
+    @t_direct_message = TDirectMessage.find_by(id: params[:id])
+    render json: { message: @t_direct_message }, status: :ok
   end
 
   # direct message update
   def update
-    t_group_message = TGroupMessage.where(id: params[:id]).first
+    t_direct_message = TDirectMessage.where(id: params[:id]).first
     message = params[:message]
-    TGroupMessage.where(id: t_group_message.id).update_all(groupmsg: message)
+    TDirectMessage.where(id: t_direct_message.id).update_all(directmsg: message)
 
-    render json: {message: 'group message updated successfully.'}, status: :ok
+    render json: { message: 'direct message updated successfully.'}, status: :ok
   end
 
   # direct message thread edit
   def edit_thread
-    @t_group_thread = TGroupThread.find_by(id: params[:id])
-    render json: {message: @t_group_thread}, status: :ok
+    @t_direct_thread = TDirectThread.find_by(id: params[:id])
+    render json: { message: @t_direct_thread }, status: :ok
   end
 
   # direct message thread update
   def update_thread
-    t_group_thread = TGroupThread.where(id: params[:id]).first
+    t_direct_thread = TDirectThread.where(id: params[:id]).first
     message = params[:message]
-    TGroupThread.where(id: t_group_thread.id).update_all(groupthreadmsg: message)
+    TDirectThread.where(id: t_direct_thread.id).update_all(directthreadmsg: message)
 
-    render json: {message: 'group thread updated successfully.'}, status: :ok
+    render json: { message: 'direct thread updated successfully.'}, status: :ok
   end
 
   private
