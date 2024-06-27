@@ -8,12 +8,18 @@ class TDirectStarMsgController < ApplicationController
 
       @s_user = MUser.find_by(id: params[:s_user_id])
 
+      ActionCable.server.broadcast("direct_message_channel", {
+        messaged_star: @t_direct_star_msg
+      })
       render json: { success: 'Star successful' }, status: :ok
     end
   end
 
   def destroy
-    TDirectStarMsg.find_by(directmsgid: params[:id], userid: @current_user).destroy
+   @t_destroy_star_msg = TDirectStarMsg.find_by(directmsgid: params[:id], userid: @current_user).destroy
+    ActionCable.server.broadcast("direct_message_channel", {
+        unstared_message: @t_destroy_star_msg
+    })
     render json: { success: 'Unstar successful' }, status: :ok
   end
 end

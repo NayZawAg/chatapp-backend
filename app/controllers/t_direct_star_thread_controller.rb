@@ -14,6 +14,9 @@ class TDirectStarThreadController < ApplicationController
       @t_direct_star_thread.save
 
       @t_direct_message = TDirectMessage.find_by(id: params[:s_direct_message_id])
+      ActionCable.server.broadcast("direct_thread_message_channel", {
+        messaged_star: @t_direct_star_thread
+      })
       render json: { success: 'Star successfully created' }, status: :ok
     end
   end
@@ -27,9 +30,12 @@ class TDirectStarThreadController < ApplicationController
     elsif params[:s_user_id].nil?
       render json: { error: 'User ID is missing' }, status: :not_found
     else
-      TDirectStarThread.find_by(directthreadid: params[:id], userid: params[:user_id]).destroy
-
+      @t_destroy_star_msg_thread = TDirectStarThread.find_by(directthreadid: params[:id], userid: params[:user_id]).destroy
+      ActionCable.server.broadcast("direct_thread_message_channel", {
+        unstared_message: @t_destroy_star_msg_thread
+      })
       @t_direct_message = TDirectMessage.find_by(id: params[:s_direct_message_id])
+
       render json: { success: 'Star successfully deleted' }, status: :ok
     end
   end

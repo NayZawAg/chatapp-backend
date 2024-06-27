@@ -17,6 +17,9 @@ class TGroupStarThreadController < ApplicationController
       @t_group_star_thread.groupthreadid = params[:id]
       @t_group_star_thread.save
       @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
+      ActionCable.server.broadcast("group_thread_message_channel", {
+        messaged_star: @t_group_star_thread
+      })
       render json: { message: 'Create star successful' }, status: :ok
     end
   end
@@ -34,8 +37,11 @@ class TGroupStarThreadController < ApplicationController
     elsif MChannel.find_by(id: params[:s_channel_id]).nil?
       render json: { message: 'Channel not found' }, status: :unprocessable_entity
     else
-      TGroupStarThread.find_by(groupthreadid: params[:id], userid: @m_user.id).destroy
+      @t_group_unstar_thread = TGroupStarThread.find_by(groupthreadid: params[:id], userid: @m_user.id).destroy
       @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
+      ActionCable.server.broadcast("group_thread_message_channel", {
+        unstared_message: @t_group_unstar_thread
+      })
       render json: { message: 'Delete star successful' }, status: :ok
     end
   end

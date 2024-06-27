@@ -5,6 +5,7 @@ class CreateTGroupMsgFiles < ActiveRecord::Migration[7.1]
       t.string :file
       t.string :mime_type
       t.string :extension
+      t.string :file_name
       t.integer :groupmsgid
       t.references :t_group_message, foreign_key: true
       t.references :m_user, foreign_key: true
