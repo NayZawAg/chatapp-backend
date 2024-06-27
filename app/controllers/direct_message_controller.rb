@@ -21,6 +21,7 @@ class DirectMessageController < ApplicationController
       params[:files].each do |file|
         image_mime = file[:mime]
         image_data = decode(file[:data])
+        file_name = file[:file_name]
 
         if MIME::Types[image_mime].empty?
           render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
@@ -29,7 +30,7 @@ class DirectMessageController < ApplicationController
 
         file_extension = extension(image_mime)
         file_url = put_s3(image_data, file_extension, image_mime)
-        file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: params[:user_id] }
+        file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: params[:user_id], file_name: file_name }
       end
     end
 
@@ -47,11 +48,19 @@ class DirectMessageController < ApplicationController
         TDirectMessageFile.create(file_record)
       end
 
+      @sender_name = MUser.find_by(id: params[:user_id]).name
+      
       MUser.where(id: params[:s_user_id]).update_all(remember_digest: "1")
+      ActionCable.server.broadcast("direct_message_channel", {
+        message: @t_direct_message,
+        files: file_records,
+        sender_name: @sender_name
+      })
 
       render json: {
         t_direct_message: @t_direct_message,
-        t_file_upload: file_records
+        t_file_upload: file_records,
+        sender_name: @sender_name
       }, status: :created
     else
       render json: @t_direct_message.errors, status: :unprocessable_entity
@@ -81,6 +90,7 @@ class DirectMessageController < ApplicationController
           params[:files].each do |file|
             image_mime = file[:mime]
             image_data = decode(file[:data])
+            file_name = file[:file_name]
 
             if MIME::Types[image_mime].empty?
               render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
@@ -89,7 +99,7 @@ class DirectMessageController < ApplicationController
 
             file_extension = extension(image_mime)
             file_url = put_s3(image_data, file_extension, image_mime)
-            file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: params[:user_id] }
+            file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: params[:user_id], file_name: file_name }
           end
         end
 
@@ -103,11 +113,19 @@ class DirectMessageController < ApplicationController
         if @t_direct_thread.save
           file_records.each do |file_record|
             file_record[:t_direct_thread_id] = @t_direct_thread.id
-            file_record[:groupthreadmsgid] = @t_direct_message.id
+            file_record[:direct_thread_id] = @t_direct_thread.id
             TDirectThreadMsgFile.create(file_record)
           end
 
+          @sender_name = MUser.find_by(id: params[:user_id]).name
+
           MUser.where(id: params[:s_user_id]).update_all(remember_digest: "1")
+
+          ActionCable.server.broadcast("direct_thread_message_channel", {
+            message: @t_direct_thread,
+            files: file_records,
+            sender_name: @sender_name
+          })
 
           render json: {
             t_direct_thread_message: @t_direct_thread,
@@ -128,26 +146,64 @@ class DirectMessageController < ApplicationController
     end
 
     TDirectStarMsg.where(directmsgid: params[:id]).destroy_all
-    TDirectMessage.find_by(id: params[:id]).destroy
+    @delete_msg = TDirectMessage.find_by(id: params[:id]).destroy
+    ActionCable.server.broadcast("direct_message_channel", {
+        delete_msg: @delete_msg
+          })
     render json: { success: 'Successfully Delete Messages' }
   end
+
+  
 
   def deletethread
     if params[:s_direct_message_id].nil?
       unless params[:s_user_id].nil?
         @user = MUser.find_by(id: params[:s_user_id])
-        render json: { error: 'Direct Message Not found' }
+        if @user.nil?
+          render json: { error: 'User not found' }, status: :not_found
+        else
+          render json: { error: 'Direct Message Not found' }, status: :not_found
+        end
+        return
       end
     elsif params[:s_user_id].nil?
-      render json: { error: 'User not found' }
+      render json: { error: 'User not found' }, status: :not_found
+      return
     else
-      TDirectStarThread.where(directthreadid: params[:id]).destroy_all
-      TDirectThread.find_by(id: params[:id]).destroy
-
-      @t_direct_message = TDirectMessage.find_by(id: session[:s_direct_message_id])
-      render json: { success: 'Successfully Delete Messages' }
+      ActiveRecord::Base.transaction do
+        TDirectStarThread.where(directthreadid: params[:id]).destroy_all
+        
+  
+        @delete_thread_msg = TDirectThread.find_by(id: params[:id])
+        if @delete_thread_msg.nil?
+          render json: { error: 'Direct thread not found' }, status: :not_found
+          return
+        else
+          @delete_thread_msg.destroy
+        end
+        
+        
+        TDirectThreadMsgFile.where(direct_thread_id: params[:id]).destroy_all
+  
+        @t_direct_message = TDirectMessage.find_by(id: session[:s_direct_message_id])
+        @delete_msg = TDirectMessage.find_by(id: params[:id])
+        if @delete_msg.nil?
+          Rails.logger.error "Direct message with id #{params[:id]} not found."
+        else
+          @delete_msg.destroy
+        end
+  
+        ActionCable.server.broadcast("direct_thread_message_channel", {
+          delete_msg_thread: @delete_thread_msg
+        })
+  
+        render json: { success: 'Successfully deleted messages' }, status: :ok
+      rescue => e
+        render json: { error: e.message }, status: :internal_server_error
+      end
     end
   end
+  
 
   def showMessage
     @second_user = params[:second_user]
