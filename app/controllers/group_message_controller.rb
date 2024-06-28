@@ -45,82 +45,15 @@ class GroupMessageController < ApplicationController
 
     return unless @t_group_message.save
 
-<<<<<<< Updated upstream
     file_records.each do |file_record|
       file_record[:t_group_message_id] = @t_group_message.id
       file_record[:groupmsgid] = @t_group_message.id
       TGroupMsgFile.create(file_record)
-=======
-      mention_name = params[:mention_name]
-
-      unless mention_name.nil?
-        mention_name.each do |u_mention|
-          u_mention[0] = ''
-          @mention_user = MUser.find_by(name: u_mention)
-          @t_group_mention_msg = TGroupMentionMsg.new(
-            userid: @mention_user.id,
-            groupmsgid: @t_group_message.id
-          )
-          @t_group_mention_msg.save
-        end
-      end
-
-      @t_user_channels = TUserChannel.where(channelid: params[:s_channel_id])
-
-      @t_user_channels.each do |u_channel|
-        if u_channel.userid != @m_user.id
-          u_channel.message_count += 1
-          temp_msgid = ""
-
-          unless u_channel.unread_channel_message.nil?
-            u_channel.unread_channel_message.split(",").each do |u_message|
-              temp_msgid += u_message
-              temp_msgid += ","
-            end
-          end
-
-          temp_msgid += @t_group_message.id.to_s
-          u_channel.unread_channel_message = temp_msgid
-
-          TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count, unread_channel_message: u_channel.unread_channel_message)
-        end
-      end
-
-      MUser.joins("INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id 
-                   INNER JOIN m_channels ON m_channels.id = t_user_channels.channelid")
-           .where("m_channels.m_workspace_id = ? AND m_channels.id = ?",
-                  @m_workspace.id, params[:s_channel_id])
-           .where.not("m_users.id = ?", @m_user.id)
-           .update_all(remember_digest: "1")
-
-      @m_channel_users = MUser.joins("INNER JOIN t_user_channels ON t_user_channels.userid = m_users.id 
-                                       INNER JOIN m_channels ON m_channels.id = t_user_channels.channelid")
-                               .where("m_users.member_status = true AND m_channels.m_workspace_id = ? AND m_channels.id = ?",
-                                      @m_workspace.id, params[:s_channel_id])
-                               .where.not("m_users.id = ?", @m_user.id)
-
-      @m_channel_users.each do |user|
-        MUser.where(id: user.id).update_all(remember_digest: "1")
-      end
-
-      
-      @m_channel = MChannel.find_by(id: params[:s_channel_id]).id
-    
-      ActionCable.server.broadcast("group_message_channel", {
-        message: @t_group_message,
-        mention: mention_name,
-        files: file_records,
-        channel_id: @m_channel,
-        sender_name: @m_user.name,
-      })
-
-      render json: { t_group_message: @t_group_message, mention: mention_name, t_group_msg_file: file_records, sender_name: @m_user.name }
->>>>>>> Stashed changes
     end
 
     mention_name = params[:mention_name]
 
-    unless mention_name.nil? || (mention_name = '')
+    unless mention_name.nil? || mention_name.empty?
       mention_name.each do |u_mention|
         u_mention[0] = ''
         @mention_user = MUser.find_by(name: u_mention)
@@ -137,7 +70,7 @@ class GroupMessageController < ApplicationController
     @t_user_channels.each do |u_channel|
       next unless u_channel.userid != @m_user.id
 
-      u_channel.message_count = u_channel.message_count + 1
+      u_channel.message_count += 1
       temp_msgid = ''
 
       u_channel.unread_channel_message&.split(',')&.each do |u_message|
@@ -169,6 +102,13 @@ class GroupMessageController < ApplicationController
     end
 
     @m_channel = MChannel.find_by(id: params[:s_channel_id])
+    ActionCable.server.broadcast("group_message_channel", {
+        message: @t_group_message,
+        mention: mention_name,
+        files: file_records,
+        channel_id: @m_channel,
+        sender_name: @m_user.name,
+      })
     render json: { t_group_message: @t_group_message, mention: mention_name, t_group_msg_file: file_records }
   end
 
@@ -198,12 +138,8 @@ class GroupMessageController < ApplicationController
           params[:files].each do |file|
             image_mime = file[:mime]
             image_data = decode(file[:data])
-<<<<<<< Updated upstream
-
-=======
             file_name = file[:file_name]
-            
->>>>>>> Stashed changes
+
             if MIME::Types[image_mime].empty?
               render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
               return
@@ -230,7 +166,7 @@ class GroupMessageController < ApplicationController
 
           mention_name = params[:mention_name]
 
-          unless mention_name.nil? || (mention_name = '')
+          unless mention_name.nil? || mention_name.empty?
             mention_name.each do |u_mention|
               u_mention[0] = ''
               @mention_user = MUser.find_by(name: u_mention)
@@ -247,7 +183,7 @@ class GroupMessageController < ApplicationController
           @t_user_channels.each do |u_channel|
             next unless u_channel.userid != @m_user.id
 
-            u_channel.message_count = u_channel.message_count + 1
+            u_channel.message_count += 1
             temp_msgid = ''
             unless u_channel.unread_thread_message.nil?
               arr_msgid = u_channel.unread_thread_message.split(',')
@@ -286,7 +222,7 @@ class GroupMessageController < ApplicationController
             files: file_records,
             channel_id: @m_channel,
             sender_name: @m_user.name,
-        })
+          })
           render json: {
             t_group_thread: @t_group_thread,
             mention: mention_name,
@@ -367,7 +303,7 @@ class GroupMessageController < ApplicationController
       render json: { message: 'Group Thread Message has been deleted' }
     end
   end
-
+  
   # group message edit
   def edit
     @t_group_message = TGroupMessage.find_by(id: params[:id])
