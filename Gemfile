@@ -47,6 +47,7 @@ gem 'aws-sdk-s3', require: false
 gem 'dotenv-rails'
 gem 'jwt'
 gem 'rack-cors'
+
 gem 'actioncable'
 gem 'mime-types'
 
