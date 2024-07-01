@@ -1,3 +1,8 @@
+require 'base64'
+require 'digest'
+require 'aws-sdk-s3'
+require 'mime/types'
+
 class MUsersController < ApplicationController
   skip_before_action :authenticate_request, only: [:login_user, :create, :confirm, :confirm_member_signup]
 
@@ -230,6 +235,43 @@ class MUsersController < ApplicationController
     render json: { error_message: e.record.errors.messages}, status: :unprocessable_entity
   end
 
+  def profile_update
+    image = params[:image]
+    image_mime = image[:mime]
+    image_data = decode(image[:data])
+
+    if MIME::Types[image_mime].empty?
+      render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
+      return
+    end
+
+    image_extension = extension(image_mime)
+    image_url = put_s3(image_data, image_extension, image_mime)
+
+    @m_user = MUser.find_by(id: params[:user_id])
+
+    if @m_user
+      profile_image_record = MUsersProfileImage.find_or_initialize_by(m_user_id: @m_user.id)
+      old_image_url = profile_image_record.image_url
+      profile_image_record.image_url = image_url
+
+      if profile_image_record.save
+        delete_from_s3(old_image_url) if old_image_url.present?
+        render json: {
+          message: 'Profile Image Updated Successfully',
+          user_id: @m_user.id,
+          profile_image: image_url
+        }
+      else
+        render json: profile_image_record.errors, status: :unprocessable_entity
+      end
+    else
+      render json: { error: 'User not found' }, status: :unprocessable_entity
+    end
+  end
+
+  
+
   private
 
   def user_params
@@ -243,5 +285,41 @@ class MUsersController < ApplicationController
 
   def invite_workspace_id_param
     params.require(:workspace_id).permit(:invite_workspaceid)
+  end
+
+  def decode(data)
+    Base64.decode64(data)
+  end
+
+  def extension(mime_type)
+    mime = MIME::Types[mime_type].first
+    raise "Unsupported Content-Type" unless mime
+    mime.extensions.first ? ".#{mime.extensions.first}" : raise("Unknown extension for MIME type")
+  end
+
+  def put_s3(data, extension, mime_type)
+    file_name = Digest::SHA1.hexdigest(data) + extension
+    s3 = Aws::S3::Resource.new
+    bucket = s3.bucket("rails-blog-minio")
+    obj = bucket.object("profile_images/#{file_name}")
+
+    obj.put(
+      acl: "public-read",
+      body: data,
+      content_type: mime_type,
+      content_disposition: "inline"
+    )
+
+    obj.public_url
+  end
+
+  def delete_from_s3(url)
+    s3 = Aws::S3::Resource.new
+    bucket_name = "rails-blog-minio"
+    file_path = url.split("#{bucket_name}/").last
+    bucket = s3.bucket(bucket_name)
+    obj = bucket.object(file_path)
+  
+    obj.delete
   end
 end

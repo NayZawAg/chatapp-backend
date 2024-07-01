@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-ruby '3.2.3'
+ruby '3.3.1'
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'bcrypt', '~> 3.1.7'
@@ -46,12 +46,8 @@ gem 'aws-sdk-s3', require: false
 
 gem 'dotenv-rails'
 gem 'jwt'
-<<<<<<< Updated upstream
 gem 'rack-cors'
-
-=======
 gem 'actioncable'
->>>>>>> Stashed changes
 gem 'mime-types'
 
 group :development, :test do
