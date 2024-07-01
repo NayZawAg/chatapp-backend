@@ -46,12 +46,9 @@ gem 'aws-sdk-s3', require: false
 
 gem 'dotenv-rails'
 gem 'jwt'
-<<<<<<< Updated upstream
 gem 'rack-cors'
 
-=======
 gem 'actioncable'
->>>>>>> Stashed changes
 gem 'mime-types'
 
 group :development, :test do
