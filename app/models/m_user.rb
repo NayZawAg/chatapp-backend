@@ -45,6 +45,8 @@ class MUser < ApplicationRecord
 
   has_many :m_users, through: :active_relationships, source: :m_user
 
+  has_one :m_users_profile_image, dependent: :destroy
+
   before_save   :downcase_email
   validates :remember_digest,  presence: true, length: { maximum: 50 }, uniqueness: { case_sensitive: false }, on: :create
   validates :profile_image,  presence: true, length: { maximum: 50 }, on: :create

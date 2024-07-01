@@ -8,7 +8,9 @@ class ApplicationController < ActionController::API
     @m_workspace = MWorkspace.find_by(id: @current_workspace)
     @m_user = MUser.find_by(id: @current_user)
 
-    @m_users = MUser.joins("INNER JOIN t_user_workspaces ON t_user_workspaces.userid = m_users.id
+    @m_users = MUser.select("m_users.id, m_users.name, m_users.email, m_users.password_digest, m_users.profile_image, m_users.remember_digest, m_users.active_status, m_users.admin, m_users.member_status, m_users.created_at, m_users.updated_at, m_users_profile_images.image_url")
+                          .joins("LEFT JOIN m_users_profile_images ON m_users_profile_images.m_user_id = m_users.id
+                          INNER JOIN t_user_workspaces ON t_user_workspaces.userid = m_users.id
                             INNER JOIN m_workspaces ON m_workspaces.id = t_user_workspaces.workspaceid")
                     .where("m_users.member_status = true and m_workspaces.id = ?", @current_workspace)
 
@@ -41,7 +43,8 @@ class ApplicationController < ActionController::API
       m_channels: @m_channels,
       direct_msgcounts: @direct_msgcounts,
       all_unread_count: @all_unread_count,
-      m_channelsids: @m_channelsids
+      m_channelsids: @m_channelsids,
+      profile_image: @profile_image
     }
   end
 
@@ -198,6 +201,9 @@ class ApplicationController < ActionController::API
       begin
         decoded = jwt_decode(token)
         @current_user = MUser.find(decoded[:user_id])
+        profile_image_record = MUsersProfileImage.find_by(m_user_id: @current_user.id)
+        image_url = profile_image_record ? profile_image_record.image_url : nil
+        @m_current_user = @current_user.as_json.merge(profile_image_url: image_url)
         @current_workspace = MWorkspace.find(decoded[:workspace_id])
       rescue JWT::DecodeError
         render json: { error: "Invalid token" }, status: :unauthorized

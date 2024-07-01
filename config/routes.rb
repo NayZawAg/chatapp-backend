@@ -9,6 +9,8 @@ Rails.application.routes.draw do
 
   get 'change_password' => 'change_password#new'
 
+  post 'profile_update' =>'m_users#profile_update'
+
   get 'home' =>  'static_pages#home'
   get 'memberinvite' => 'member_invitation#new'
   post 'memberinvite' => 'member_invitation#invite'
