@@ -142,10 +142,12 @@ class DirectMessageController < ApplicationController
     directthreads = TDirectThread.where(t_direct_message_id: params[:id])
     directthreads.each do |directthread|
       TDirectStarThread.where(directthreadid: directthread.id).destroy_all
+      TDirectReactThread.where(directthreadid: directthread.id).destroy_all
       directthread.destroy
     end
 
     TDirectStarMsg.where(directmsgid: params[:id]).destroy_all
+    TDirectReactMsg.where(directmsgid: params[:id]).destroy_all  
     @delete_msg = TDirectMessage.find_by(id: params[:id]).destroy
     ActionCable.server.broadcast("direct_message_channel", {
         delete_msg: @delete_msg
@@ -172,7 +174,7 @@ class DirectMessageController < ApplicationController
     else
       ActiveRecord::Base.transaction do
         TDirectStarThread.where(directthreadid: params[:id]).destroy_all
-        
+        TDirectReactThread.where(directthreadid: params[:id]).destroy_all
   
         @delete_thread_msg = TDirectThread.find_by(id: params[:id])
         if @delete_thread_msg.nil?

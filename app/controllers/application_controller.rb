@@ -79,6 +79,22 @@ class ApplicationController < ActionController::API
                                                    (t_direct_messages.receive_user_id = ? AND t_direct_messages.send_user_id = ?)",
                                                    @m_user.id, params[:id], params[:id], @m_user.id)
     @t_direct_message_datesize = @t_direct_messages.map { |d| d.created_at.strftime("%F").to_s }
+
+    # start for direct react
+    @temp_direct_react_msgids = TDirectReactMsg.select("directmsgid").distinct
+    @t_direct_react_msgids = Array.new
+    @temp_direct_react_msgids.each { |r| @t_direct_react_msgids.push(r.directmsgid) }
+    
+    @t_direct_msg_emojiscounts = TDirectReactMsg.select('t_direct_react_msgs.directmsgid, t_direct_react_msgs.emoji, COUNT(emoji) AS emoji_count')
+                                               .joins('INNER JOIN t_direct_messages ON t_direct_messages.id = t_direct_react_msgs.directmsgid')
+                                               .group('t_direct_react_msgs.directmsgid, t_direct_react_msgs.emoji')
+                                               .order('t_direct_react_msgs.directmsgid ASC')
+  
+    @react_usernames = MUser.select("t_direct_react_msgs.userid, m_users.name, t_direct_react_msgs.emoji, t_direct_react_msgs.directmsgid")
+                            .joins("INNER JOIN t_direct_react_msgs ON m_users.id = t_direct_react_msgs.userid")
+                            .joins("INNER JOIN t_direct_messages ON t_direct_messages.id = t_direct_react_msgs.directmsgid")
+                            .where("t_direct_messages.id = t_direct_react_msgs.directmsgid")                              
+    # end for direct react
   end
 
   def retrieve_direct_thread(direct_message_id)
@@ -101,6 +117,22 @@ class ApplicationController < ActionController::API
 
     @temp_direct_star_thread_msgids = TDirectStarThread.select("directthreadid").where("userid = ?", @current_user)
     @t_direct_star_thread_msgids = @temp_direct_star_thread_msgids.pluck(:directthreadid)
+
+    # start for direct react
+    @temp_direct_react_thread_msgids = TDirectReactThread.select("directthreadid").distinct
+    @t_direct_react_thread_msgids = Array.new
+    @temp_direct_react_thread_msgids.each { |r| @t_direct_react_thread_msgids.push(r.directthreadid) }
+    
+    @t_direct_thread_emojiscounts = TDirectReactThread.select('t_direct_react_threads.directthreadid, t_direct_react_threads.emoji, COUNT(emoji) AS emoji_count')
+                                              .joins('INNER JOIN t_direct_threads ON t_direct_threads.id = t_direct_react_threads.directthreadid')
+                                              .group('t_direct_react_threads.directthreadid, t_direct_react_threads.emoji')
+                                              .order('t_direct_react_threads.directthreadid ASC')
+  
+    @react_usernames = MUser.select("t_direct_react_threads.userid, m_users.name, t_direct_react_threads.emoji, t_direct_react_threads.directthreadid")
+                            .joins("INNER JOIN t_direct_react_threads ON m_users.id = t_direct_react_threads.userid")
+                            .joins("INNER JOIN t_direct_threads ON t_direct_threads.id = t_direct_react_threads.directthreadid")
+                            .where("t_direct_threads.id = t_direct_react_threads.directthreadid")                              
+    # end for direct react
   end
 
   def retrieve_group_message
@@ -138,6 +170,24 @@ class ApplicationController < ActionController::API
     @t_group_message_dates = TGroupMessage.select("distinct DATE(created_at) as created_date").where("m_channel_id = ?", @s_channel)
     @t_group_message_datesize = @t_group_messages.map { |d| d.created_at.strftime("%F").to_s }
 
+    # start for group react
+    @temp_group_react_msgids = TGroupReactMsg.select("groupmsgid").distinct
+
+    @t_group_react_msgids = Array.new
+    @temp_group_react_msgids.each { |r| @t_group_react_msgids.push(r.groupmsgid) }
+
+    @emoji_counts = TGroupReactMsg.select('t_group_react_msgs.groupmsgid, t_group_react_msgs.emoji, COUNT(emoji) AS emoji_count')
+                                  .joins('JOIN t_group_messages ON t_group_react_msgs.groupmsgid = t_group_messages.id')
+                                  .where('t_group_react_msgs.groupmsgid = t_group_messages.id')
+                                  .group('t_group_react_msgs.emoji, t_group_react_msgs.groupmsgid')
+                                  .order('t_group_react_msgs.groupmsgid ASC')
+
+    @react_usernames = MUser.select("t_group_react_msgs.userid, m_users.name, t_group_react_msgs.emoji, t_group_react_msgs.groupmsgid")
+                            .joins("INNER JOIN t_group_react_msgs ON m_users.id = t_group_react_msgs.userid")
+                            .joins("INNER JOIN t_group_messages ON t_group_messages.id = t_group_react_msgs.groupmsgid")
+                            .where("t_group_messages.id = t_group_react_msgs.groupmsgid")
+    # end for group react
+
     @retrieve_group_message = {
       s_channel: @s_channel,
       t_group_messages: @t_group_messages,
@@ -146,7 +196,10 @@ class ApplicationController < ActionController::API
       u_count: @u_count,
       created_admin: @created_admin,
       t_group_message_dates: @t_group_message_dates,
-      t_group_message_datesize: @t_group_message_datesize
+      t_group_message_datesize: @t_group_message_datesize,
+      t_group_react_msgids: @t_group_react_msgids,
+      emoji_counts: @emoji_counts,
+      react_usernames: @react_usernames
     }
   end
 
@@ -180,6 +233,24 @@ class ApplicationController < ActionController::API
 
     @u_count = TUserChannel.where(channelid: params[:s_channel_id]).count
 
+    # start for group react
+    @temp_group_react_thread_msgids = TGroupReactThread.select("groupthreadid").distinct
+
+    @t_group_react_thread_msgids = Array.new
+    @temp_group_react_thread_msgids.each { |r| @t_group_react_thread_msgids.push(r.groupthreadid) }
+
+    @emoji_counts = TGroupReactThread.select('t_group_react_threads.groupthreadid, t_group_react_threads.emoji, COUNT(emoji) AS emoji_count')
+                                  .joins('JOIN t_group_threads ON t_group_react_threads.groupthreadid = t_group_threads.id')
+                                  .where('t_group_react_threads.groupthreadid = t_group_threads.id')
+                                  .group('t_group_react_threads.emoji, t_group_react_threads.groupthreadid')
+                                  .order('t_group_react_threads.groupthreadid ASC')
+
+    @react_usernames = MUser.select("t_group_react_threads.userid, m_users.name, t_group_react_threads.emoji, t_group_react_threads.groupthreadid")
+                            .joins("INNER JOIN t_group_react_threads ON m_users.id = t_group_react_threads.userid")
+                            .joins("INNER JOIN t_group_threads ON t_group_threads.id = t_group_react_threads.groupthreadid")
+                            .where("t_group_threads.id = t_group_react_threads.groupthreadid")
+    # end for group react
+
     @retrieveGroupThread = {
       s_channel: @s_channel,
       m_channel_users: @m_channel_users,
@@ -188,7 +259,10 @@ class ApplicationController < ActionController::API
       t_group_threads: @t_group_threads,
       temp_group_star_thread_msgids: @temp_group_star_thread_msgids,
       t_group_star_thread_msgids: @t_group_star_thread_msgids,
-      u_count: @u_count
+      u_count: @u_count,
+      t_group_react_thread_msgids: @t_group_react_thread_msgids,
+      emoji_counts: @emoji_counts,
+      react_usernames: @react_usernames
     }
   end
 

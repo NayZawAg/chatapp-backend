@@ -243,12 +243,14 @@ class GroupMessageController < ApplicationController
       gpthread = TGroupThread.select('id').where(t_group_message_id: params[:id])
       gpthread.each do |gpthread|
         TGroupStarThread.where(groupthreadid: gpthread.id).destroy_all
+        TGroupReactThread.where(groupthreadid: gpthread.id).destroy_all
         TGroupMentionThread.where(groupthreadid: gpthread.id).destroy_all
         TGroupThreadMsgFile.where(groupthreadid: gpthread.id).destroy_all
         TGroupThread.find_by(id: gpthread.id).destroy
       end
 
       TGroupStarMsg.where(groupmsgid: params[:id]).destroy_all
+      TGroupReactMsg.where(groupmsgid: params[:id]).destroy_all
       TGroupMentionMsg.where(groupmsgid: params[:id]).destroy_all
       TGroupMsgFile.where(groupmsgid: params[:id]).destroy_all
       @delete_group_msg =  TGroupMessage.find_by(id: params[:id]).delete
@@ -285,6 +287,7 @@ class GroupMessageController < ApplicationController
       render json: { message: 'Channel not found' }
     else
       TGroupStarThread.where(groupthreadid: params[:id]).destroy_all
+      TGroupReactThread.where(groupthreadid: params[:id]).destroy_all
       TGroupMentionThread.where(groupthreadid: params[:id]).destroy_all
       @delete_group_thread = TGroupThread.find_by(id: params[:id]).destroy
 
