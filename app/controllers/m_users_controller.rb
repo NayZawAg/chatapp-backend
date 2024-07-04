@@ -209,16 +209,16 @@ class MUsersController < ApplicationController
     password_confirmation = params[:m_user][:password_confirmation]
     user = MUser.find_by(id: @current_user.id)
     if user && user.authenticate(old_password)
-      if password.blank?
-        render json: { error: "Password can't be blank." }, status: :unprocessable_entity
-      elsif password_confirmation.blank?
-        render json: { error: "Confirm Password can't be blank." }, status: :unprocessable_entity
-      elsif password != password_confirmation
-        render json: { error: "Password and Confirmation Password do not match." }, status: :unprocessable_entity
-      else
-        MUser.where(id: @user).update_all(password_digest: @m_user.password_digest)
-        render json: { message: "Change Password Successful." }, status: :ok
-      end
+      # if password.blank?
+      #   render json: { error: "Password can't be blank." }, status: :unprocessable_entity
+      # elsif password_confirmation.blank?
+      #   render json: { error: "Confirm Password can't be blank." }, status: :unprocessable_entity
+      # elsif password != password_confirmation
+      #   render json: { error: "Password and Confirmation Password do not match." }, status: :unprocessable_entity
+      # else
+      MUser.where(id: @user).update_all(password_digest: @m_user.password_digest)
+      render json: { message: "Change Password Successful." }, status: :ok
+      # end
     else
       render json: { error: "Your current password is wrong." }, status: :ok
     end

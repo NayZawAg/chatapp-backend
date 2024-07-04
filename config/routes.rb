@@ -95,6 +95,21 @@ Rails.application.routes.draw do
   # user name edit
   patch "/m_users/edit_username" => "m_users#edit_username"
 
+  # start routes for direct react
+  post 'directreact' => 't_direct_react_msg#create'
+  get 'directreact' => 't_direct_react_msg#create'
+
+  post 'directthreadreact' => 't_direct_react_thread#create'
+  get 'directthreadreact' => 't_direct_react_thread#create'
+
+  # start routes for group react
+  post 'groupreact' => 't_group_react_msg#create'
+  get 'groupreact' => 't_group_react_msg#create'
+
+  post 'groupthreadreact' => 't_group_react_thread#create'
+  get 'groupthreadreact' => 't_group_react_thread#create'
+  # end routes for group react
+
   resources :m_workspaces
   resources :m_users
   resources :m_channels

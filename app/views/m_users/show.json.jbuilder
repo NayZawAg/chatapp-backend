@@ -5,3 +5,6 @@ json.temp_direct_star_msgids  @temp_direct_star_msgids
 json.t_direct_star_msgids   @t_direct_star_msgids
 json.t_direct_message_dates  @t_direct_message_dates
 json.t_direct_message_datesize  @t_direct_message_datesize
+json.t_direct_react_msgids  @t_direct_react_msgids
+json.t_direct_msg_emojiscounts  @t_direct_msg_emojiscounts
+json.react_usernames  @react_usernames
