@@ -316,10 +316,25 @@ class GroupMessageController < ApplicationController
   # group message update
   def update
     t_group_message = TGroupMessage.where(id: params[:id]).first
+    TGroupMentionMsg.where(groupmsgid: params[:id]).destroy_all
     message = params[:message]
+    mention_name = params[:mention_name]
+    unless mention_name.nil? || mention_name.empty?
+      mention_name.each do |u_mention|
+        u_mention[0] = ''
+        @mention_user = MUser.find_by(name: u_mention)
+        # unless TGroupMentionMsg.exists?(userid: @mention_user.id, groupmsgid: t_group_message.id)
+        @t_group_mention_msg = TGroupMentionMsg.new(
+          userid: @mention_user.id,
+          groupmsgid: t_group_message.id
+        )
+        @t_group_mention_msg.save
+        # end
+      end
+    end
     TGroupMessage.where(id: t_group_message.id).update_all(groupmsg: message)
 
-    render json: {message: 'group message updated successfully.'}, status: :ok
+    render json: {message: 'group message updated successfully.', mention: mention_name}, status: :ok
   end
 
   # group message thread edit
@@ -331,10 +346,27 @@ class GroupMessageController < ApplicationController
   # group message thread update
   def update_thread
     t_group_thread = TGroupThread.where(id: params[:id]).first
+    TGroupMentionThread.where(groupthreadid: params[:id]).destroy_all
+
     message = params[:message]
+    mention_name = params[:mention_name]
+
+    unless mention_name.nil? || mention_name.empty?
+      mention_name.each do |u_mention|
+        u_mention[0] = ''
+        @mention_user = MUser.find_by(name: u_mention)
+        # unless TGroupMentionThread.exists?(userid: @mention_user.id, groupthreadid: t_group_thread.id)
+        @t_group_mention_thread = TGroupMentionThread.new(
+          userid: @mention_user.id,
+          groupthreadid: t_group_thread.id
+        )
+        @t_group_mention_thread.save
+        # end
+      end
+    end
     TGroupThread.where(id: t_group_thread.id).update_all(groupthreadmsg: message)
     
-    render json: {message: 'group thread updated successfully.'}, status: :ok
+    render json: {message: 'group thread updated successfully.', mention: mention_name}, status: :ok
   end
 
   private
