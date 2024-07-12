@@ -71,7 +71,7 @@ class ApplicationController < ActionController::API
 
     @s_user = MUser.find_by(id: params[:id])
 
-    @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at as created_at, m_users_profile_images.image_url,　t_direct_messages.draft_message_status as draft_message_status, 
+    @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at as created_at, m_users_profile_images.image_url, t_direct_messages.draft_message_status as draft_message_status, t_direct_messages.send_user_id as send_user_id,
                                                 ARRAY_AGG(t_direct_message_files.file) as file_urls, ARRAY_AGG(t_direct_message_files.file_name) as file_names,
                                                 (select count(*) from t_direct_threads where t_direct_threads.t_direct_message_id = t_direct_messages.id) as count")
                                                 .joins("INNER JOIN m_users ON m_users.id = t_direct_messages.send_user_id")
