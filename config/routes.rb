@@ -44,6 +44,7 @@ Rails.application.routes.draw do
   get 'thread' => 'thread#show'
   get 'mentionlists' => 'mention_lists#show'
   get 'allunread' => 'all_unread#show'
+  get 'draftlists' => 'draft_lists#show'
 
   get 'usermanage' => 'user_manage#usermanage'
   get 'edit' => 'user_manage#edit'
