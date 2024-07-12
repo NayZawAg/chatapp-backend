@@ -119,7 +119,7 @@ class ApplicationController < ActionController::API
 
     TDirectThread.where.not(m_user_id: @current_user, read_status: false).update_all(read_status: true)
 
-    @t_direct_threads = TDirectThread.select("name, directthreadmsg, t_direct_threads.id as id, t_direct_threads.created_at as created_at, m_users_profile_images.image_url,　t_direct_threads.draft_message_status, ARRAY_AGG(t_direct_thread_msg_files.file) as file_urls, ARRAY_AGG(t_direct_thread_msg_files.file_name) as file_names")
+    @t_direct_threads = TDirectThread.select("name, directthreadmsg, t_direct_threads.id as id, t_direct_threads.created_at as created_at, m_users_profile_images.image_url, t_direct_threads.draft_message_status, ARRAY_AGG(t_direct_thread_msg_files.file) as file_urls, ARRAY_AGG(t_direct_thread_msg_files.file_name) as file_names")
                                      .joins("INNER JOIN t_direct_messages ON t_direct_messages.id = t_direct_threads.t_direct_message_id
                                              INNER JOIN m_users ON m_users.id = t_direct_threads.m_user_id")
                                      .joins("LEFT JOIN t_direct_thread_msg_files ON t_direct_thread_msg_files.t_direct_thread_id = t_direct_threads.id")
@@ -231,7 +231,7 @@ class ApplicationController < ActionController::API
     
 
     @t_group_threads = TGroupThread.select("name, groupthreadmsg, t_group_threads.id as id, t_group_threads.created_at as created_at, 
-                                            t_group_threads.m_user_id as send_user_id, m_users_profile_images.image_url , t_group_threads.draft_message_status as draft_message_status, ARRAY_AGG(t_group_thread_msg_files.file) as file_url, ARRAY_AGG(t_group_thread_msg_files.file_name) as file_name")
+                                            t_group_threads.m_user_id as send_user_id, m_users_profile_images.image_url, t_group_threads.draft_message_status as draft_message_status, ARRAY_AGG(t_group_thread_msg_files.file) as file_url, ARRAY_AGG(t_group_thread_msg_files.file_name) as file_name")
                                    .joins("INNER JOIN t_group_messages ON t_group_messages.id = t_group_threads.t_group_message_id
                                            INNER JOIN m_users ON m_users.id = t_group_threads.m_user_id")
                                    .joins("LEFT JOIN t_group_thread_msg_files ON t_group_thread_msg_files.t_group_thread_id = t_group_threads.id")
