@@ -43,8 +43,7 @@ class ApplicationController < ActionController::API
       m_channels: @m_channels,
       direct_msgcounts: @direct_msgcounts,
       all_unread_count: @all_unread_count,
-      m_channelsids: @m_channelsids,
-      profile_image: @profile_image
+      m_channelsids: @m_channelsids
     }
   end
 
@@ -59,15 +58,16 @@ class ApplicationController < ActionController::API
                  .where.not(m_user_id: @m_user.id, read_status: true).update_all(read_status: true)
 
     @s_user = MUser.find_by(id: params[:id])
-    @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at as created_at, 
-                                                ARRAY_AGG(t_direct_message_files.file) as file_urls, 
+    @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at as created_at, m_users_profile_images.image_url,
+                                                ARRAY_AGG(t_direct_message_files.file) as file_urls, ARRAY_AGG(t_direct_message_files.file_name) as file_names,
                                                 (select count(*) from t_direct_threads where t_direct_threads.t_direct_message_id = t_direct_messages.id) as count")
                                                 .joins("INNER JOIN m_users ON m_users.id = t_direct_messages.send_user_id")
                                                 .joins("LEFT JOIN t_direct_message_files ON t_direct_message_files.t_direct_message_id = t_direct_messages.id")
+                                                .joins("LEFT JOIN m_users_profile_images ON m_users_profile_images.m_user_id = m_users.id")
                                                 .where("(t_direct_messages.receive_user_id = ? AND t_direct_messages.send_user_id = ?) OR 
                                                 (t_direct_messages.receive_user_id = ? AND t_direct_messages.send_user_id = ?)",
                                                 @m_user.id, params[:id], params[:id], @m_user.id)
-                                                .group("name, directmsg, t_direct_messages.id, t_direct_messages.created_at")
+                                                .group("name, directmsg, t_direct_messages.id, t_direct_messages.created_at, m_users_profile_images.image_url")
                                                 .order(created_at: :desc)
     @t_direct_messages = @t_direct_messages.reverse
 
@@ -80,7 +80,6 @@ class ApplicationController < ActionController::API
                                                    @m_user.id, params[:id], params[:id], @m_user.id)
     @t_direct_message_datesize = @t_direct_messages.map { |d| d.created_at.strftime("%F").to_s }
 
-    # start for direct react
     @temp_direct_react_msgids = TDirectReactMsg.select("directmsgid").distinct
     @t_direct_react_msgids = Array.new
     @temp_direct_react_msgids.each { |r| @t_direct_react_msgids.push(r.directmsgid) }
@@ -93,8 +92,8 @@ class ApplicationController < ActionController::API
     @react_usernames = MUser.select("t_direct_react_msgs.userid, m_users.name, t_direct_react_msgs.emoji, t_direct_react_msgs.directmsgid")
                             .joins("INNER JOIN t_direct_react_msgs ON m_users.id = t_direct_react_msgs.userid")
                             .joins("INNER JOIN t_direct_messages ON t_direct_messages.id = t_direct_react_msgs.directmsgid")
-                            .where("t_direct_messages.id = t_direct_react_msgs.directmsgid")                              
-    # end for direct react
+                            .where("t_direct_messages.id = t_direct_react_msgs.directmsgid") 
+
   end
 
   def retrieve_direct_thread(direct_message_id)
@@ -107,18 +106,18 @@ class ApplicationController < ActionController::API
 
     TDirectThread.where.not(m_user_id: @current_user, read_status: false).update_all(read_status: true)
 
-    @t_direct_threads = TDirectThread.select("name, directthreadmsg, t_direct_threads.id as id, t_direct_threads.created_at as created_at, ARRAY_AGG(t_direct_thread_msg_files.file) as file_urls")
+    @t_direct_threads = TDirectThread.select("name, directthreadmsg, t_direct_threads.id as id, t_direct_threads.created_at as created_at, m_users_profile_images.image_url ,ARRAY_AGG(t_direct_thread_msg_files.file) as file_urls, ARRAY_AGG(t_direct_thread_msg_files.file_name) as file_names")
                                      .joins("INNER JOIN t_direct_messages ON t_direct_messages.id = t_direct_threads.t_direct_message_id
                                              INNER JOIN m_users ON m_users.id = t_direct_threads.m_user_id")
                                      .joins("LEFT JOIN t_direct_thread_msg_files ON t_direct_thread_msg_files.t_direct_thread_id = t_direct_threads.id")
+                                     .joins("LEFT JOIN m_users_profile_images ON m_users_profile_images.m_user_id = m_users.id")
                                      .where("t_direct_threads.t_direct_message_id = ?", direct_message_id)
-                                     .group("name, directthreadmsg, t_direct_threads.id, t_direct_threads.created_at")
+                                     .group("name, directthreadmsg, t_direct_threads.id, t_direct_threads.created_at, m_users_profile_images.image_url")
                                      .order(id: :asc)
 
     @temp_direct_star_thread_msgids = TDirectStarThread.select("directthreadid").where("userid = ?", @current_user)
     @t_direct_star_thread_msgids = @temp_direct_star_thread_msgids.pluck(:directthreadid)
 
-    # start for direct react
     @temp_direct_react_thread_msgids = TDirectReactThread.select("directthreadid").distinct
     @t_direct_react_thread_msgids = Array.new
     @temp_direct_react_thread_msgids.each { |r| @t_direct_react_thread_msgids.push(r.directthreadid) }
@@ -131,8 +130,7 @@ class ApplicationController < ActionController::API
     @react_usernames = MUser.select("t_direct_react_threads.userid, m_users.name, t_direct_react_threads.emoji, t_direct_react_threads.directthreadid")
                             .joins("INNER JOIN t_direct_react_threads ON m_users.id = t_direct_react_threads.userid")
                             .joins("INNER JOIN t_direct_threads ON t_direct_threads.id = t_direct_react_threads.directthreadid")
-                            .where("t_direct_threads.id = t_direct_react_threads.directthreadid")                              
-    # end for direct react
+                            .where("t_direct_threads.id = t_direct_react_threads.directthreadid")
   end
 
   def retrieve_group_message
@@ -140,9 +138,10 @@ class ApplicationController < ActionController::API
     @m_user = MUser.find_by(id: @current_user)
     @s_channel = MChannel.find_by(id: params[:id])
 
-    @m_channel_users = MUser.select("m_users.id, m_users.name, m_users.admin, m_users.email, m_users.active_status, m_users.member_status, t_user_channels.created_admin, t_user_channels.created_at")
+    @m_channel_users = MUser.select("m_users.id, m_users.name, m_users.admin, m_users.email, m_users.active_status, m_users.member_status, t_user_channels.created_admin, t_user_channels.created_at, m_users_profile_images.image_url as profile_image")
                             .joins("INNER JOIN t_user_channels on t_user_channels.userid = m_users.id
                                     INNER JOIN m_channels ON m_channels.id = t_user_channels.channelid")
+                            .joins("LEFT JOIN m_users_profile_images on m_users_profile_images.m_user_id = m_users.id")
                             .where("m_users.member_status = true and m_channels.m_workspace_id = ? and m_channels.id = ?",
                                    @current_workspace, @s_channel)
                             .order("t_user_channels.created_at": :asc)
@@ -150,13 +149,14 @@ class ApplicationController < ActionController::API
     TUserChannel.where(channelid: @s_channel, userid: @current_user).update_all(message_count: 0, 
                                                                                 unread_channel_message: nil, unread_thread_message: nil)
 
-    @t_group_messages = TGroupMessage.select("name, groupmsg, t_group_messages.id as id, t_group_messages.created_at as created_at, 
-                                              t_group_messages.m_user_id as send_user_id, ARRAY_AGG(t_group_msg_files.file) as file_urls,
+    @t_group_messages = TGroupMessage.select("name, groupmsg, t_group_messages.id as id, t_group_messages.created_at as created_at, m_users_profile_images.image_url,
+                                              t_group_messages.m_user_id as send_user_id, ARRAY_AGG(t_group_msg_files.file) as file_urls, ARRAY_AGG(t_group_msg_files.file_name) as file_names,
                                               (select count(*) from t_group_threads where t_group_threads.t_group_message_id = t_group_messages.id) as count")
                                      .joins("INNER JOIN m_users ON m_users.id = t_group_messages.m_user_id")
+                                     .joins("LEFT JOIN m_users_profile_images ON m_users_profile_images.m_user_id = m_users.id")
                                      .joins("LEFT JOIN t_group_msg_files ON t_group_msg_files.t_group_message_id = t_group_messages.id")
                                      .where("m_channel_id = ?", @s_channel)
-                                     .group("name, groupmsg, t_group_messages.id, t_group_messages.created_at")
+                                     .group("name, groupmsg, t_group_messages.id, t_group_messages.created_at, m_users_profile_images.image_url")
                                      .order(created_at: :desc)
                                      
     @t_group_messages = @t_group_messages.reverse
@@ -170,7 +170,6 @@ class ApplicationController < ActionController::API
     @t_group_message_dates = TGroupMessage.select("distinct DATE(created_at) as created_date").where("m_channel_id = ?", @s_channel)
     @t_group_message_datesize = @t_group_messages.map { |d| d.created_at.strftime("%F").to_s }
 
-    # start for group react
     @temp_group_react_msgids = TGroupReactMsg.select("groupmsgid").distinct
 
     @t_group_react_msgids = Array.new
@@ -186,7 +185,6 @@ class ApplicationController < ActionController::API
                             .joins("INNER JOIN t_group_react_msgs ON m_users.id = t_group_react_msgs.userid")
                             .joins("INNER JOIN t_group_messages ON t_group_messages.id = t_group_react_msgs.groupmsgid")
                             .where("t_group_messages.id = t_group_react_msgs.groupmsgid")
-    # end for group react
 
     @retrieve_group_message = {
       s_channel: @s_channel,
@@ -220,12 +218,13 @@ class ApplicationController < ActionController::API
     
 
     @t_group_threads = TGroupThread.select("name, groupthreadmsg, t_group_threads.id as id, t_group_threads.created_at as created_at, 
-                                            t_group_threads.m_user_id as send_user_id, ARRAY_AGG(t_group_thread_msg_files.file) as file_url")
+                                            t_group_threads.m_user_id as send_user_id, m_users_profile_images.image_url , ARRAY_AGG(t_group_thread_msg_files.file) as file_url, ARRAY_AGG(t_group_thread_msg_files.file_name) as file_name")
                                    .joins("INNER JOIN t_group_messages ON t_group_messages.id = t_group_threads.t_group_message_id
                                            INNER JOIN m_users ON m_users.id = t_group_threads.m_user_id")
                                    .joins("LEFT JOIN t_group_thread_msg_files ON t_group_thread_msg_files.t_group_thread_id = t_group_threads.id")
+                                   .joins("LEFT JOIN m_users_profile_images ON m_users_profile_images.m_user_id = m_users.id")
                                    .where("t_group_threads.t_group_message_id = ?", params[:s_group_message_id])
-                                   .group("name, groupthreadmsg, t_group_threads.id, t_group_threads.created_at")
+                                   .group("name, groupthreadmsg, t_group_threads.id, t_group_threads.created_at, m_users_profile_images.image_url")
                                    .order(id: :asc)
 
     @temp_group_star_thread_msgids = TGroupStarThread.select("groupthreadid").where("userid = ?", @current_user)
@@ -233,7 +232,6 @@ class ApplicationController < ActionController::API
 
     @u_count = TUserChannel.where(channelid: params[:s_channel_id]).count
 
-    # start for group react
     @temp_group_react_thread_msgids = TGroupReactThread.select("groupthreadid").distinct
 
     @t_group_react_thread_msgids = Array.new
@@ -249,7 +247,6 @@ class ApplicationController < ActionController::API
                             .joins("INNER JOIN t_group_react_threads ON m_users.id = t_group_react_threads.userid")
                             .joins("INNER JOIN t_group_threads ON t_group_threads.id = t_group_react_threads.groupthreadid")
                             .where("t_group_threads.id = t_group_react_threads.groupthreadid")
-    # end for group react
 
     @retrieveGroupThread = {
       s_channel: @s_channel,

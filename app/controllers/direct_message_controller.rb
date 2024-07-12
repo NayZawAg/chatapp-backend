@@ -27,9 +27,9 @@ class DirectMessageController < ApplicationController
           render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
           return
         end
-
+        folder_name_for_dm= "direct_message_files"
         file_extension = extension(image_mime)
-        file_url = put_s3(image_data, file_extension, image_mime)
+        file_url = put_s3(image_data, file_extension, image_mime, folder_name_for_dm )
         file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: params[:user_id], file_name: file_name }
       end
     end
@@ -50,11 +50,17 @@ class DirectMessageController < ApplicationController
 
       @sender_name = MUser.find_by(id: params[:user_id]).name
       
+      if MUsersProfileImage.find_by(m_user_id: params[:user_id]).present?
+        @sender_profile_image = MUsersProfileImage.find_by(m_user_id: params[:user_id]).image_url
+      end
+
+      
       MUser.where(id: params[:s_user_id]).update_all(remember_digest: "1")
       ActionCable.server.broadcast("direct_message_channel", {
         message: @t_direct_message,
         files: file_records,
-        sender_name: @sender_name
+        sender_name: @sender_name,
+        profile_image: @sender_profile_image
       })
 
       render json: {
@@ -96,9 +102,9 @@ class DirectMessageController < ApplicationController
               render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
               return
             end
-
+            folder_name_for_dt = "direct_thread_files"
             file_extension = extension(image_mime)
-            file_url = put_s3(image_data, file_extension, image_mime)
+            file_url = put_s3(image_data, file_extension, image_mime, folder_name_for_dt)
             file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: params[:user_id], file_name: file_name }
           end
         end
@@ -118,13 +124,18 @@ class DirectMessageController < ApplicationController
           end
 
           @sender_name = MUser.find_by(id: params[:user_id]).name
+          
+          if MUsersProfileImage.find_by(m_user_id: params[:user_id]).present?
+            @sender_profile_image = MUsersProfileImage.find_by(m_user_id: params[:user_id]).image_url
+          end
 
           MUser.where(id: params[:s_user_id]).update_all(remember_digest: "1")
 
           ActionCable.server.broadcast("direct_thread_message_channel", {
             message: @t_direct_thread,
             files: file_records,
-            sender_name: @sender_name
+            sender_name: @sender_name,
+            profile_image: @sender_profile_image
           })
 
           render json: {
@@ -141,13 +152,21 @@ class DirectMessageController < ApplicationController
   def deletemsg
     directthreads = TDirectThread.where(t_direct_message_id: params[:id])
     directthreads.each do |directthread|
+      TDirectThreadMsgFile.where(direct_thread_id: directthread.id).each do |file|
+        delete_from_s3(file.file)
+      end
       TDirectStarThread.where(directthreadid: directthread.id).destroy_all
       TDirectReactThread.where(directthreadid: directthread.id).destroy_all
       directthread.destroy
     end
+   
+    TDirectMessageFile.where(t_direct_message_id: params[:id]).each do |file|
+      delete_from_s3(file.file)
+    end
 
     TDirectStarMsg.where(directmsgid: params[:id]).destroy_all
-    TDirectReactMsg.where(directmsgid: params[:id]).destroy_all  
+    TDirectReactMsg.where(directmsgid: params[:id]).destroy_all
+
     @delete_msg = TDirectMessage.find_by(id: params[:id]).destroy
     ActionCable.server.broadcast("direct_message_channel", {
         delete_msg: @delete_msg
@@ -173,9 +192,12 @@ class DirectMessageController < ApplicationController
       return
     else
       ActiveRecord::Base.transaction do
+        TDirectThreadMsgFile.where(direct_thread_id: params[:id]).each do |file|
+          delete_from_s3(file.file)
+        end
         TDirectStarThread.where(directthreadid: params[:id]).destroy_all
         TDirectReactThread.where(directthreadid: params[:id]).destroy_all
-  
+
         @delete_thread_msg = TDirectThread.find_by(id: params[:id])
         if @delete_thread_msg.nil?
           render json: { error: 'Direct thread not found' }, status: :not_found
@@ -254,11 +276,12 @@ class DirectMessageController < ApplicationController
     mime.extensions.first ? ".#{mime.extensions.first}" : raise("Unknown extension for MIME type")
   end
 
-  def put_s3(data, extension, mime_type)
-    file_name = Digest::SHA1.hexdigest(data) + extension
+  def put_s3(data, extension, mime_type, folder)
+    unique_time = Time.now.strftime("%Y%m%d%H%M%S")
+    file_name = Digest::SHA1.hexdigest(data)  + unique_time + extension
     s3 = Aws::S3::Resource.new
     bucket = s3.bucket("rails-blog-minio")
-    obj = bucket.object("files/#{file_name}")
+    obj = bucket.object("#{folder}/#{file_name}")
 
     obj.put(
       acl: "public-read",
@@ -268,5 +291,15 @@ class DirectMessageController < ApplicationController
     )
 
     obj.public_url
+  end
+
+  def delete_from_s3(url)
+    s3 = Aws::S3::Resource.new
+    bucket_name = "rails-blog-minio"
+    file_path = url.split("#{bucket_name}/").last
+    bucket = s3.bucket(bucket_name)
+    obj = bucket.object(file_path)
+  
+    obj.delete
   end
 end

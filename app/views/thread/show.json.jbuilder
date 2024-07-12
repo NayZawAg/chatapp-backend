@@ -4,6 +4,9 @@ json.t_direct_messages @t_direct_messages do |t_direct_message|
   json.receiver_id t_direct_message.receive_user_id
   json.sender_id t_direct_message.send_user_id
   json.file_urls t_direct_message.file_urls
+  json.profile_image t_direct_message.profile_image
+  json.receiver_name t_direct_message.receiver_name
+  json.file_names t_direct_message.file_names
   json.directmsg t_direct_message.directmsg
   json.created_at t_direct_message.created_at
 end
@@ -13,7 +16,9 @@ json.t_direct_threads @t_direct_threads do |t_direct_thread|
   json.name t_direct_thread.name
   json.file_urls t_direct_thread.file_urls
   json.directthreadmsg t_direct_thread.directthreadmsg
+  json.file_names t_direct_thread.file_names
   json.t_direct_message_id t_direct_thread.t_direct_message_id
+  json.profile_image t_direct_thread.profile_image
   json.sender_id t_direct_thread.m_user_id
   json.created_at t_direct_thread.created_at
 end
@@ -25,6 +30,8 @@ json.t_group_messages @t_group_messages do |t_group_message|
   json.channel_id t_group_message.channel_id
   json.channel_status t_group_message.channel_status
   json.channel_name t_group_message.channel_name
+  json.file_names t_group_message.file_names
+  json.profile_image t_group_message.profile_image
   json.groupmsg t_group_message.groupmsg
   json.m_user_id t_group_message.m_user_id
   json.created_at t_group_message.created_at
@@ -36,7 +43,9 @@ json.t_group_threads @t_group_threads do |t_group_thread|
   json.file_urls t_group_thread.file_urls
   json.channel_name t_group_thread.channel_name
   json.groupthreadmsg t_group_thread.groupthreadmsg
+  json.file_names t_group_thread.file_names
   json.t_group_message_id t_group_thread.t_group_message_id
+  json.profile_image t_group_thread.profile_image
   json.m_user_id t_group_thread.m_user_id
   json.created_at t_group_thread.created_at
 end

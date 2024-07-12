@@ -30,9 +30,9 @@ class GroupMessageController < ApplicationController
           render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
           return
         end
-
+        folder_name_for_group_message= "group_message_files"
         file_extension = extension(image_mime)
-        file_url = put_s3(image_data, file_extension, image_mime)
+        file_url = put_s3(image_data, file_extension, image_mime, folder_name_for_group_message)
         file_records << { file: file_url, mime_type: image_mime, extension: file_extension, file_name: file_name, m_user_id: @m_user.id }
       end
     end
@@ -102,13 +102,20 @@ class GroupMessageController < ApplicationController
     end
 
     @m_channel = MChannel.find_by(id: params[:s_channel_id])
+
+    if MUsersProfileImage.find_by(m_user_id: @current_user.id).present?
+      @sender_profile_image = MUsersProfileImage.find_by(m_user_id: @current_user.id).image_url
+    end
+    
     ActionCable.server.broadcast("group_message_channel", {
         message: @t_group_message,
+        profile_image: @sender_profile_image,
         mention: mention_name,
         files: file_records,
         channel_id: @m_channel,
-        sender_name: @m_user.name,
+        sender_name: @m_user.name
       })
+      
     render json: { t_group_message: @t_group_message, mention: mention_name, t_group_msg_file: file_records }
   end
 
@@ -144,9 +151,9 @@ class GroupMessageController < ApplicationController
               render json: { error: 'Unsupported Content-Type' }, status: :unsupported_media_type
               return
             end
-
+            folder_name_for_group_thread_message= "group_thread_message_files"
             file_extension = extension(image_mime)
-            file_url = put_s3(image_data, file_extension, image_mime)
+            file_url = put_s3(image_data, file_extension, image_mime, folder_name_for_group_thread_message)
             file_records << { file: file_url, mime_type: image_mime, extension: file_extension, m_user_id: @m_user.id, file_name: file_name }
           end
         end
@@ -216,13 +223,20 @@ class GroupMessageController < ApplicationController
           end
 
           @m_channel = MChannel.find_by(id: params[:s_channel_id])
+
+          if MUsersProfileImage.find_by(m_user_id: @m_user.id).present?
+            @sender_profile_image = MUsersProfileImage.find_by(m_user_id: @m_user.id).image_url
+          end
+
           ActionCable.server.broadcast("group_thread_message_channel", {
             message: @t_group_thread,
+            profile_image: @sender_profile_image,
             mention: mention_name,
             files: file_records,
             channel_id: @m_channel,
-            sender_name: @m_user.name,
+            sender_name: @m_user.name  
           })
+          
           render json: {
             t_group_thread: @t_group_thread,
             mention: mention_name,
@@ -242,17 +256,24 @@ class GroupMessageController < ApplicationController
     else
       gpthread = TGroupThread.select('id').where(t_group_message_id: params[:id])
       gpthread.each do |gpthread|
+        TGroupThreadMsgFile.where(groupthreadmsgid: gpthread).each do |file|
+          delete_from_s3(file.file)
+        end
         TGroupStarThread.where(groupthreadid: gpthread.id).destroy_all
-        TGroupReactThread.where(groupthreadid: gpthread.id).destroy_all
         TGroupMentionThread.where(groupthreadid: gpthread.id).destroy_all
-        TGroupThreadMsgFile.where(groupthreadid: gpthread.id).destroy_all
+        TGroupReactThread.where(groupthreadid: gpthread.id).destroy_all
         TGroupThread.find_by(id: gpthread.id).destroy
       end
 
+      TGroupMsgFile.where(groupmsgid: params[:id]).each do |file|
+        delete_from_s3(file.file)
+      end
+
       TGroupStarMsg.where(groupmsgid: params[:id]).destroy_all
-      TGroupReactMsg.where(groupmsgid: params[:id]).destroy_all
       TGroupMentionMsg.where(groupmsgid: params[:id]).destroy_all
+      TGroupReactMsg.where(groupmsgid: params[:id]).destroy_all
       TGroupMsgFile.where(groupmsgid: params[:id]).destroy_all
+
       @delete_group_msg =  TGroupMessage.find_by(id: params[:id]).delete
       @t_user_channels = TUserChannel.where(channelid: params[:s_channel_id])
       @t_user_channels.each do |u_channel|
@@ -286,15 +307,19 @@ class GroupMessageController < ApplicationController
     elsif MChannel.find_by(id: params[:s_channel_id]).nil?
       render json: { message: 'Channel not found' }
     else
+      @t_group_thread = TGroupThread.find_by(id: params[:id])
+      TGroupThreadMsgFile.where(groupthreadmsgid: @t_group_thread.id).each do |file|
+        delete_from_s3(file.file)
+    end
       TGroupStarThread.where(groupthreadid: params[:id]).destroy_all
       TGroupReactThread.where(groupthreadid: params[:id]).destroy_all
       TGroupMentionThread.where(groupthreadid: params[:id]).destroy_all
       @delete_group_thread = TGroupThread.find_by(id: params[:id]).destroy
 
+      TGroupThreadMsgFile.where(groupthreadmsgid: params[:id]).destroy_all
       @t_user_channels = TUserChannel.where(channelid: params[:s_channel_id])
       @t_user_channels.each do |u_channel|
         next unless u_channel.userid != @m_user.id
-
         u_channel.message_count -= 1
         TUserChannel.where(id: u_channel.id).update_all(message_count: u_channel.message_count)
       end
@@ -350,11 +375,12 @@ class GroupMessageController < ApplicationController
     mime.extensions.first ? ".#{mime.extensions.first}" : raise('Unknown extension for MIME type')
   end
 
-  def put_s3(data, extension, mime_type)
-    file_name = Digest::SHA1.hexdigest(data) + extension
+  def put_s3(data, extension, mime_type, folder)
+    unique_time = Time.now.strftime("%Y%m%d%H%M%S")
+    file_name = Digest::SHA1.hexdigest(data) + unique_time + extension 
     s3 = Aws::S3::Resource.new
     bucket = s3.bucket('rails-blog-minio')
-    obj = bucket.object("files/#{file_name}")
+    obj = bucket.object("#{folder}/#{file_name}")
 
     obj.put(
       acl: 'public-read',
@@ -365,4 +391,18 @@ class GroupMessageController < ApplicationController
 
     obj.public_url
   end
+
+  def delete_from_s3(url)
+    s3 = Aws::S3::Resource.new
+    bucket_name = "rails-blog-minio"
+    file_path = url.split("#{bucket_name}/").last
+    bucket = s3.bucket(bucket_name)
+    obj = bucket.object(file_path)
+  
+    obj.delete
+  end
+
+
+
+
 end
