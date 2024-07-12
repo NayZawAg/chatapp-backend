@@ -129,16 +129,13 @@ class MUsersController < ApplicationController
     @m_channel.channel_status = true
     @m_user.member_status = true
     status = true
-
     @t_workspace = MWorkspace.find_by(id: invite_workspace_id_param[:invite_workspaceid])
-
-    if status && @m_user.save
+    if status &&  @m_user.save
       MUser.where(id: @m_user.id).update_all(remember_digest: nil, profile_image: nil)
     else
       status = false
     end
-
-    if @t_workspace.nil?
+    if(@t_workspace.nil?)
       if status && @m_workspace.save
       else
         status = false
@@ -146,23 +143,18 @@ class MUsersController < ApplicationController
     else
       @m_workspace = @t_workspace
     end
-
     @t_user_workspace = TUserWorkspace.new
     @t_user_workspace.userid = @m_user.id
     @t_user_workspace.workspaceid = @m_workspace.id
-
     if status && @t_user_workspace.save
     else
       status = false
     end
-
     @t_user_channel = TUserChannel.new
     @t_channel = MChannel.find_by(channel_name: @m_channel.channel_name, m_workspace_id: @m_workspace.id)
-
-    if @t_channel.nil?
+    if(@t_channel.nil?)
       @t_user_channel.created_admin = true
       @m_channel.m_workspace_id = @m_workspace.id
-
       if status && @m_channel.save
       else
         status = false
@@ -171,16 +163,18 @@ class MUsersController < ApplicationController
       @t_user_channel.created_admin = false
       @m_channel = @t_channel
     end
-
     @t_user_channel.message_count = 0
     @t_user_channel.unread_channel_message = 0
     @t_user_channel.userid = @m_user.id
     @t_user_channel.channelid = @m_channel.id
-
-    if status
-      render json: { message: "Signup Complete." }, status: :ok
+    if status && @t_user_channel.save
     else
-      render json: { error: "Signup Failed." }, status: :unprocessable_entity
+      status = false
+    end
+    if(status)
+      render json: { message: "Signup Complete."}, status: :ok
+    else
+      render json: { error: "Signup Failed."}, status: :unprocessable_entity
     end
   end
 
@@ -209,16 +203,16 @@ class MUsersController < ApplicationController
     password_confirmation = params[:m_user][:password_confirmation]
     user = MUser.find_by(id: @current_user.id)
     if user && user.authenticate(old_password)
-      # if password.blank?
-      #   render json: { error: "Password can't be blank." }, status: :unprocessable_entity
-      # elsif password_confirmation.blank?
-      #   render json: { error: "Confirm Password can't be blank." }, status: :unprocessable_entity
-      # elsif password != password_confirmation
-      #   render json: { error: "Password and Confirmation Password do not match." }, status: :unprocessable_entity
-      # else
-      MUser.where(id: @user).update_all(password_digest: @m_user.password_digest)
-      render json: { message: "Change Password Successful." }, status: :ok
-      # end
+      if password.blank?
+        render json: { error: "Password can't be blank." }, status: :unprocessable_entity
+      elsif password_confirmation.blank?
+        render json: { error: "Confirm Password can't be blank." }, status: :unprocessable_entity
+      elsif password != password_confirmation
+        render json: { error: "Password and Confirmation Password do not match." }, status: :unprocessable_entity
+      else
+        MUser.where(id: @user).update_all(password_digest: @m_user.password_digest)
+        render json: { message: "Change Password Successful." }, status: :ok
+      end
     else
       render json: { error: "Your current password is wrong." }, status: :ok
     end
@@ -247,7 +241,6 @@ class MUsersController < ApplicationController
 
     image_extension = extension(image_mime)
     image_url = put_s3(image_data, image_extension, image_mime)
-
     @m_user = MUser.find_by(id: params[:user_id])
 
     if @m_user
@@ -298,7 +291,8 @@ class MUsersController < ApplicationController
   end
 
   def put_s3(data, extension, mime_type)
-    file_name = Digest::SHA1.hexdigest(data) + extension
+    unique_time = Time.now.strftime("%Y%m%d%H%M%S")
+    file_name = Digest::SHA1.hexdigest(data)  + unique_time + extension
     s3 = Aws::S3::Resource.new
     bucket = s3.bucket("rails-blog-minio")
     obj = bucket.object("profile_images/#{file_name}")
