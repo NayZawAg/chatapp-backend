@@ -38,7 +38,8 @@ class DirectMessageController < ApplicationController
       directmsg: params[:message],
       send_user_id: params[:user_id],
       receive_user_id: params[:s_user_id],
-      read_status: 0
+      read_status: 0,
+      draft_message_status: params[:draft_message_status]
     )
 
     if @t_direct_message.save
@@ -113,7 +114,8 @@ class DirectMessageController < ApplicationController
           directthreadmsg: params[:message],
           t_direct_message_id: params[:s_direct_message_id],
           m_user_id: params[:user_id],
-          read_status: 0
+          read_status: 0,
+          draft_message_status: params[:draft_message_status],
         )
 
         if @t_direct_thread.save

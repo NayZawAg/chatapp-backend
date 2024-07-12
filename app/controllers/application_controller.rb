@@ -7,12 +7,13 @@ class ApplicationController < ActionController::API
   def retrievehome
     @m_workspace = MWorkspace.find_by(id: @current_workspace)
     @m_user = MUser.find_by(id: @current_user)
-
+    
     @m_users = MUser.select("m_users.id, m_users.name, m_users.email, m_users.password_digest, m_users.profile_image, m_users.remember_digest, m_users.active_status, m_users.admin, m_users.member_status, m_users.created_at, m_users.updated_at, m_users_profile_images.image_url")
                           .joins("LEFT JOIN m_users_profile_images ON m_users_profile_images.m_user_id = m_users.id
                           INNER JOIN t_user_workspaces ON t_user_workspaces.userid = m_users.id
-                            INNER JOIN m_workspaces ON m_workspaces.id = t_user_workspaces.workspaceid")
-                    .where("m_users.member_status = true and m_workspaces.id = ?", @current_workspace)
+                          INNER JOIN m_workspaces ON m_workspaces.id = t_user_workspaces.workspaceid
+                          ")
+                          .where("(m_users.member_status = true and m_workspaces.id = ?)", @current_workspace)
 
     @m_channels = MChannel.select("m_channels.id, channel_name, channel_status, t_user_channels.message_count")
                           .joins("INNER JOIN t_user_channels ON t_user_channels.channelid = m_channels.id")
@@ -24,6 +25,7 @@ class ApplicationController < ActionController::API
                             .order(id: :asc)
 
     @direct_msgcounts = []
+    @direct_draft_status_counts = []
     @m_users.each do |muser|
       direct_count = TDirectMessage.where(send_user_id: muser.id, receive_user_id: @current_user, read_status: false)
       thread_count = TDirectThread.joins("INNER JOIN t_direct_messages ON t_direct_messages.id = t_direct_threads.t_direct_message_id")
@@ -32,8 +34,15 @@ class ApplicationController < ActionController::API
                                            (t_direct_messages.send_user_id = ? AND t_direct_messages.receive_user_id = ?))",
                                           muser.id, muser.id, @current_user, @current_user, muser.id)
       @direct_msgcounts.push(direct_count.size + thread_count.size)
+      direct_draft_count = TDirectMessage.where(receive_user_id: muser.id, draft_message_status: true)
+      @direct_draft_status_counts.push(direct_draft_count.size)
     end
 
+    @group_draft_status_counts = []
+    @m_channels.each do |mchannel|
+      group_draft_count = TGroupMessage.where(m_channel_id: mchannel.id, draft_message_status: true)
+      @group_draft_status_counts.push(group_draft_count.size)
+    end
     @all_unread_count = @m_channels.sum(&:message_count) + @direct_msgcounts.sum
 
     @m_channelsids = @m_channels.pluck(:id)
@@ -43,7 +52,10 @@ class ApplicationController < ActionController::API
       m_channels: @m_channels,
       direct_msgcounts: @direct_msgcounts,
       all_unread_count: @all_unread_count,
-      m_channelsids: @m_channelsids
+      m_channelsids: @m_channelsids,
+      profile_image: @profile_image,
+      direct_draft_status_counts: @direct_draft_status_counts,
+      group_draft_status_counts: @group_draft_status_counts,
     }
   end
 
@@ -58,7 +70,8 @@ class ApplicationController < ActionController::API
                  .where.not(m_user_id: @m_user.id, read_status: true).update_all(read_status: true)
 
     @s_user = MUser.find_by(id: params[:id])
-    @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at as created_at, m_users_profile_images.image_url,
+
+    @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at as created_at, m_users_profile_images.image_url,　t_direct_messages.draft_message_status as draft_message_status, 
                                                 ARRAY_AGG(t_direct_message_files.file) as file_urls, ARRAY_AGG(t_direct_message_files.file_name) as file_names,
                                                 (select count(*) from t_direct_threads where t_direct_threads.t_direct_message_id = t_direct_messages.id) as count")
                                                 .joins("INNER JOIN m_users ON m_users.id = t_direct_messages.send_user_id")
@@ -106,7 +119,7 @@ class ApplicationController < ActionController::API
 
     TDirectThread.where.not(m_user_id: @current_user, read_status: false).update_all(read_status: true)
 
-    @t_direct_threads = TDirectThread.select("name, directthreadmsg, t_direct_threads.id as id, t_direct_threads.created_at as created_at, m_users_profile_images.image_url ,ARRAY_AGG(t_direct_thread_msg_files.file) as file_urls, ARRAY_AGG(t_direct_thread_msg_files.file_name) as file_names")
+    @t_direct_threads = TDirectThread.select("name, directthreadmsg, t_direct_threads.id as id, t_direct_threads.created_at as created_at, m_users_profile_images.image_url,　t_direct_threads.draft_message_status, ARRAY_AGG(t_direct_thread_msg_files.file) as file_urls, ARRAY_AGG(t_direct_thread_msg_files.file_name) as file_names")
                                      .joins("INNER JOIN t_direct_messages ON t_direct_messages.id = t_direct_threads.t_direct_message_id
                                              INNER JOIN m_users ON m_users.id = t_direct_threads.m_user_id")
                                      .joins("LEFT JOIN t_direct_thread_msg_files ON t_direct_thread_msg_files.t_direct_thread_id = t_direct_threads.id")
@@ -150,7 +163,7 @@ class ApplicationController < ActionController::API
                                                                                 unread_channel_message: nil, unread_thread_message: nil)
 
     @t_group_messages = TGroupMessage.select("name, groupmsg, t_group_messages.id as id, t_group_messages.created_at as created_at, m_users_profile_images.image_url,
-                                              t_group_messages.m_user_id as send_user_id, ARRAY_AGG(t_group_msg_files.file) as file_urls, ARRAY_AGG(t_group_msg_files.file_name) as file_names,
+                                              t_group_messages.m_user_id as send_user_id, t_group_messages.draft_message_status as draft_message_status, ARRAY_AGG(t_group_msg_files.file) as file_urls, ARRAY_AGG(t_group_msg_files.file_name) as file_names,
                                               (select count(*) from t_group_threads where t_group_threads.t_group_message_id = t_group_messages.id) as count")
                                      .joins("INNER JOIN m_users ON m_users.id = t_group_messages.m_user_id")
                                      .joins("LEFT JOIN m_users_profile_images ON m_users_profile_images.m_user_id = m_users.id")
@@ -218,7 +231,7 @@ class ApplicationController < ActionController::API
     
 
     @t_group_threads = TGroupThread.select("name, groupthreadmsg, t_group_threads.id as id, t_group_threads.created_at as created_at, 
-                                            t_group_threads.m_user_id as send_user_id, m_users_profile_images.image_url , ARRAY_AGG(t_group_thread_msg_files.file) as file_url, ARRAY_AGG(t_group_thread_msg_files.file_name) as file_name")
+                                            t_group_threads.m_user_id as send_user_id, m_users_profile_images.image_url , t_group_threads.draft_message_status as draft_message_status, ARRAY_AGG(t_group_thread_msg_files.file) as file_url, ARRAY_AGG(t_group_thread_msg_files.file_name) as file_name")
                                    .joins("INNER JOIN t_group_messages ON t_group_messages.id = t_group_threads.t_group_message_id
                                            INNER JOIN m_users ON m_users.id = t_group_threads.m_user_id")
                                    .joins("LEFT JOIN t_group_thread_msg_files ON t_group_thread_msg_files.t_group_thread_id = t_group_threads.id")

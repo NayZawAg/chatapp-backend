@@ -40,7 +40,8 @@ class GroupMessageController < ApplicationController
     @t_group_message = TGroupMessage.new(
       groupmsg: params[:message],
       m_user_id: @m_user.id,
-      m_channel_id: params[:s_channel_id]
+      m_channel_id: params[:s_channel_id],
+      draft_message_status: params[:draft_message_status]
     )
 
     return unless @t_group_message.save
@@ -161,7 +162,8 @@ class GroupMessageController < ApplicationController
         @t_group_thread = TGroupThread.new(
           groupthreadmsg: params[:message],
           t_group_message_id: params[:s_group_message_id],
-          m_user_id: @m_user.id
+          m_user_id: @m_user.id,
+          draft_message_status: params[:draft_message_status]
         )
 
         if @t_group_thread.save
