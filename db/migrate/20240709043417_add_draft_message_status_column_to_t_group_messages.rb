@@ -1,4 +1,4 @@
-class AddDraftMessageStatusToTGroupMessages < ActiveRecord::Migration[7.1]
+class AddDraftMessageStatusColumnToTGroupMessages < ActiveRecord::Migration[7.1]
   def up
     add_column :t_group_messages, :draft_message_status, :boolean
   end
