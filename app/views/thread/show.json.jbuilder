@@ -30,6 +30,7 @@ json.t_group_messages @t_group_messages do |t_group_message|
   json.channel_id t_group_message.channel_id
   json.channel_status t_group_message.channel_status
   json.channel_name t_group_message.channel_name
+  json.channel_users t_group_message.channel_users
   json.file_names t_group_message.file_names
   json.profile_image t_group_message.profile_image
   json.groupmsg t_group_message.groupmsg
