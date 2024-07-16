@@ -69,7 +69,10 @@ class ApplicationController < ActionController::API
                         @m_user.id, params[:id], params[:id], @m_user.id)
                  .where.not(m_user_id: @m_user.id, read_status: true).update_all(read_status: true)
 
-    @s_user = MUser.find_by(id: params[:id])
+    @temp_s_user = MUser.find_by(id: params[:id])
+    profile_image_record = MUsersProfileImage.find_by(m_user_id: params[:id])
+    image_url = profile_image_record ? profile_image_record.image_url : nil
+    @s_user = @temp_s_user.as_json.merge(image_url: image_url)
 
     @t_direct_messages = TDirectMessage.select("name, directmsg, t_direct_messages.id as id, t_direct_messages.created_at as created_at, m_users_profile_images.image_url, t_direct_messages.draft_message_status as draft_message_status, t_direct_messages.send_user_id as send_user_id,
                                                 ARRAY_AGG(t_direct_message_files.file) as file_urls, ARRAY_AGG(t_direct_message_files.file_name) as file_names,
@@ -115,7 +118,11 @@ class ApplicationController < ActionController::API
 
     m_userss = MUser.find_by(id: @t_direct_message.send_user_id)
     @send_username = m_userss.name
-    @send_user = MUser.find_by(id: @t_direct_message.send_user_id)
+    
+    @temp_send_user = MUser.find_by(id: @t_direct_message.send_user_id)
+    suser_profile_image = MUsersProfileImage.find_by(m_user_id: @t_direct_message.send_user_id)
+    suser_image_url = suser_profile_image ? suser_profile_image.image_url : nil
+    @send_user = @temp_send_user.as_json.merge(image_url: suser_image_url)
 
     TDirectThread.where.not(m_user_id: @current_user, read_status: false).update_all(read_status: true)
 
@@ -227,7 +234,11 @@ class ApplicationController < ActionController::API
     TUserChannel.where(channelid: params[:s_channel_id], userid: @current_user).update_all(message_count: 0, unread_channel_message: nil)
 
     @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
-    @send_user = MUser.find_by(id: @t_group_message.m_user_id)
+    @temp_send_user = MUser.find_by(id: @t_group_message.m_user_id)
+
+    profile_image_record = MUsersProfileImage.find_by(m_user_id: @t_group_message.m_user_id)
+    image_url = profile_image_record ? profile_image_record.image_url : nil
+    @send_user = @temp_send_user.as_json.merge(image_url: image_url)
     
 
     @t_group_threads = TGroupThread.select("name, groupthreadmsg, t_group_threads.id as id, t_group_threads.created_at as created_at, 

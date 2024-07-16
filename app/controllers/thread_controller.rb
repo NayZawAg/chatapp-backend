@@ -22,12 +22,14 @@ class ThreadController < ApplicationController
                                            .order(id: :asc)
                                            
     @t_group_messages = TGroupMessage.select("distinct m_users.name, t_group_messages.groupmsg,t_group_messages.m_user_id as m_user_id, t_group_messages.id as id, t_group_threads.t_group_message_id, t_group_messages.m_channel_id as channel_id, m_channels.channel_status as channel_status, m_users_profile_images.image_url as profile_image,
-                                                    t_group_messages.created_at as created_at, m_channels.channel_name as channel_name, ARRAY_AGG(distinct t_group_msg_files.file) as file_urls, ARRAY_AGG(distinct t_group_msg_files.file_name) as file_names, MAX(t_group_threads.created_at) as last_thread_created_at")
+                                           t_group_messages.created_at as created_at, m_channels.channel_name as channel_name, ARRAY_AGG(distinct t_group_msg_files.file) as file_urls, ARRAY_AGG(distinct t_group_msg_files.file_name) as file_names, ARRAY_AGG(DISTINCT m_channel_users.name) AS channel_users, MAX(t_group_threads.created_at) as last_thread_created_at")
                                           .joins("INNER JOIN m_channels ON m_channels.id = t_group_messages.m_channel_id
                                                    INNER JOIN m_users ON m_users.id = t_group_messages.m_user_id
                                                    INNER JOIN t_group_threads ON t_group_threads.t_group_message_id = t_group_messages.id")
                                           .joins("LEFT JOIN t_group_msg_files ON t_group_msg_files.t_group_message_id = t_group_messages.id")
                                           .joins("LEFT JOIN m_users_profile_images ON m_users_profile_images.m_user_id = m_users.id")
+                                          .joins("INNER JOIN t_user_channels ON t_user_channels.channelid = t_group_messages.m_channel_id")
+                                          .joins("INNER JOIN m_users AS m_channel_users ON m_channel_users.id = t_user_channels.userid")
                                           .where("t_group_threads.t_group_message_id = t_group_messages.id AND t_group_messages.m_user_id = ? OR t_group_threads.m_user_id = ?", @current_user, @current_user)
                                           .group("m_users.name, t_group_messages.groupmsg, t_group_messages.m_user_id, t_group_messages.id, m_users_profile_images.image_url, t_group_threads.t_group_message_id, t_group_messages.created_at, m_channels.channel_name, m_channels.channel_status")
                                           .order("last_thread_created_at DESC")
