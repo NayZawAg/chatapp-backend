@@ -10,8 +10,14 @@ class TGroupReactMsgController < ApplicationController
     else
       existing_reaction = TGroupReactMsg.find_by(groupmsgid: params[:message_id], userid: @m_user.id, emoji: params[:emoji])
       if existing_reaction.present?
-        TGroupReactMsg.find_by(groupmsgid: params[:message_id], userid: @m_user.id, emoji: params[:emoji]).destroy
-
+        t_group_react = TGroupReactMsg.find_by(groupmsgid: params[:message_id], userid: @m_user.id, emoji: params[:emoji]).destroy
+        @react_user_info = @m_user.name
+        ActionCable.server.broadcast("group_message_channel", {
+          remove_reaction: t_group_react,
+          reacted_user_info: @react_user_info,
+          m_channel_id: params[:s_channel_id],
+          
+        })
         render json: { message: 'delete successful'}, status: :ok
       else
         @t_group_react_msg = TGroupReactMsg.new
@@ -19,6 +25,12 @@ class TGroupReactMsgController < ApplicationController
         @t_group_react_msg.userid = @m_user.id
         @t_group_react_msg.emoji = params[:emoji]
         @t_group_react_msg.save
+        @react_user_info = @m_user.name
+        ActionCable.server.broadcast("group_message_channel", {
+            react_message: @t_group_react_msg,
+            reacted_user_info: @react_user_info,
+            m_channel_id: params[:s_channel_id]
+          })
 
         render json: { message: 'react successful'}, status: :ok
       end
