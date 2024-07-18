@@ -6,8 +6,10 @@ json.t_direct_messages @t_direct_messages do |t_direct_message|
   json.file_urls t_direct_message.file_urls
   json.profile_image t_direct_message.profile_image
   json.receiver_name t_direct_message.receiver_name
+  json.active_status  t_direct_message.active_status
   json.file_names t_direct_message.file_names
   json.directmsg t_direct_message.directmsg
+  json.sender_active_status t_direct_message.sender_active_status
   json.created_at t_direct_message.created_at
 end
 

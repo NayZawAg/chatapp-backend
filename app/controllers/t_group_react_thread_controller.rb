@@ -15,7 +15,13 @@ class TGroupReactThreadController < ApplicationController
     else
       existing_reaction = TGroupReactThread.find_by(groupthreadid: params[:thread_id], userid: @m_user.id, emoji: params[:emoji])
       if existing_reaction.present?
-        TGroupReactThread.find_by(groupthreadid: params[:thread_id], userid: @m_user.id, emoji: params[:emoji]).destroy
+        t_group_thread_react = TGroupReactThread.find_by(groupthreadid: params[:thread_id], userid: @m_user.id, emoji: params[:emoji]).destroy
+        @react_user_info = @m_user.name
+        ActionCable.server.broadcast("group_thread_message_channel", {
+          remove_reaction: t_group_thread_react,
+          reacted_user_info: @react_user_info,
+          m_channel_id: params[:s_channel_id]
+        })
 
         render json: { message: 'delete successful'}, status: :ok
       else
@@ -24,7 +30,12 @@ class TGroupReactThreadController < ApplicationController
         @t_group_react_thread.userid = @m_user.id
         @t_group_react_thread.emoji = params[:emoji]
         @t_group_react_thread.save
-
+        @react_user_info = @m_user.name
+        ActionCable.server.broadcast("group_thread_message_channel", {
+            react_message: @t_group_react_thread,
+            reacted_user_info: @react_user_info,
+            m_channel_id: params[:s_channel_id]
+          })
         render json: { message: 'react successful'}, status: :ok
       end
     end
