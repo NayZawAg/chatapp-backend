@@ -248,6 +248,13 @@ class DirectMessageController < ApplicationController
     message = params[:message]
     TDirectMessage.where(id: t_direct_message.id).update_all(directmsg: message)
 
+    @update_direct_message = TDirectMessage.where(id: params[:id]).first
+
+    ActionCable.server.broadcast("direct_message_channel", {
+      update_message: @update_direct_message,
+      sender_name: @current_user.name
+    })
+
     render json: { message: 'direct message updated successfully.'}, status: :ok
   end
 
@@ -262,6 +269,18 @@ class DirectMessageController < ApplicationController
     t_direct_thread = TDirectThread.where(id: params[:id]).first
     message = params[:message]
     TDirectThread.where(id: t_direct_thread.id).update_all(directthreadmsg: message)
+
+    @update_direct_thread = TDirectThread.where(id: params[:id]).first
+
+    if MUsersProfileImage.find_by(m_user_id: @current_user.id).present?
+      @sender_profile_image = MUsersProfileImage.find_by(m_user_id: @current_user.id).image_url
+    end
+
+    ActionCable.server.broadcast("direct_thread_message_channel", {
+      update_thread_message: @update_direct_thread,
+      sender_name: @current_user.name,
+      profile_image: @sender_profile_image
+    })
 
     render json: { message: 'direct thread updated successfully.'}, status: :ok
   end
