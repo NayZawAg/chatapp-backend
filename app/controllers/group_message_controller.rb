@@ -372,7 +372,6 @@ class GroupMessageController < ApplicationController
 
     @update_t_group_message = TGroupMessage.where(id: params[:id]).first
 
-
     ActionCable.server.broadcast("group_message_channel", {
       update_group_message:@update_t_group_message,
       profile_image: @sender_profile_image,
