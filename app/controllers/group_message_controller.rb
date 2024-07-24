@@ -365,6 +365,21 @@ class GroupMessageController < ApplicationController
       end
     end
     TGroupMessage.where(id: t_group_message.id).update_all(groupmsg: message)
+
+    if MUsersProfileImage.find_by(m_user_id: @current_user.id).present?
+      @sender_profile_image = MUsersProfileImage.find_by(m_user_id: @current_user.id).image_url
+    end
+
+    @update_t_group_message = TGroupMessage.where(id: params[:id]).first
+
+
+    ActionCable.server.broadcast("group_message_channel", {
+      update_group_message:@update_t_group_message,
+      profile_image: @sender_profile_image,
+      mention: mention_name,
+      sender_name: @current_user.name,
+    })
+
     render json: { message: "group message updated successfully.", mention: mention_name }, status: :ok
   end
 
@@ -400,6 +415,19 @@ class GroupMessageController < ApplicationController
       end
     end
     TGroupThread.where(id: t_group_thread.id).update_all(groupthreadmsg: message)
+
+    @update_t_group_thread = TGroupThread.where(id: params[:id]).first
+
+    if MUsersProfileImage.find_by(m_user_id: @current_user.id).present?
+      @sender_profile_image = MUsersProfileImage.find_by(m_user_id: @current_user.id).image_url
+    end
+
+    ActionCable.server.broadcast("group_thread_message_channel", {
+      update_group_thread: @update_t_group_thread,
+      profile_image: @sender_profile_image,
+      mention: mention_name,
+      sender_name: @current_user.name,
+    })
 
     render json: { message: "group thread updated successfully.", mention: mention_name }, status: :ok
   end
