@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 json.t_direct_messages @t_direct_messages do |t_direct_message|
   json.id t_direct_message.id
   json.name t_direct_message.name
@@ -6,7 +8,7 @@ json.t_direct_messages @t_direct_messages do |t_direct_message|
   json.file_urls t_direct_message.file_urls
   json.profile_image t_direct_message.profile_image
   json.receiver_name t_direct_message.receiver_name
-  json.active_status  t_direct_message.active_status
+  json.active_status t_direct_message.active_status
   json.file_names t_direct_message.file_names
   json.directmsg t_direct_message.directmsg
   json.sender_active_status t_direct_message.sender_active_status
@@ -57,3 +59,15 @@ json.t_direct_star_thread_msgids @t_direct_star_thread_msgids
 json.t_direct_star_msgids @t_direct_star_msgids
 json.t_group_star_msgids @t_group_star_msgids
 json.t_group_star_thread_msgids @t_group_star_thread_msgids
+json.t_direct_react_msgids @t_direct_react_msgids
+json.t_direct_msg_emojiscounts @t_direct_msg_emojiscounts
+json.react_usernames @react_usernames
+json.t_direct_react_thread_msgids @t_direct_react_thread_msgids
+json.t_direct_thread_emojiscounts @t_direct_thread_emojiscounts
+json.t_direct_thread_react_usernames @t_direct_thread_react_usernames
+json.t_group_react_msgids @t_group_react_msgids
+json.group_emoji_counts @group_emoji_counts
+json.group_react_usernames @group_react_usernames
+json.t_group_react_thread_msgids @t_group_react_thread_msgids
+json.t_group_thread_emoji_counts @t_group_thread_emoji_counts
+json.t_group_thread_react_usernames @t_group_thread_react_usernames

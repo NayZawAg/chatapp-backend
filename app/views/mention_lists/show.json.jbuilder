@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 json.t_group_messages @t_group_messages do |t_group_message|
   json.id t_group_message.id
   json.groupmsg t_group_message.groupmsg
@@ -20,9 +22,9 @@ json.t_group_threads @t_group_threads do |t_group_thread|
 end
 json.t_group_star_msgids @t_group_star_msgids
 json.t_group_star_thread_msgids @t_group_star_thread_msgids
-
-
-
-
-
-
+json.t_group_react_msgids @t_group_react_msgids
+json.group_emoji_counts @group_emoji_counts
+json.group_react_usernames @group_react_usernames
+json.t_group_react_thread_msgids @t_group_react_thread_msgids
+json.group_thread_emoji_counts @group_thread_emoji_counts
+json.group_thread_react_usernames @group_thread_react_usernames
