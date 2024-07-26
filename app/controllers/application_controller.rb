@@ -115,8 +115,6 @@ class ApplicationController < ActionController::API
   def retrieve_direct_thread(direct_message_id)
     @s_user = MUser.find_by(id: @current_user)
     # @t_direct_message = TDirectMessage.find_by(id: direct_message_id)
-
-    # @t_direct_message = TDirectMessage.find_by(id: direct_message_id)
     @t_direct_message = TDirectMessage.select("t_direct_messages.id as id,
                                               directmsg, t_direct_messages.created_at as created_at, 
                                               t_direct_messages.draft_message_status as draft_message_status, 
@@ -264,7 +262,6 @@ class ApplicationController < ActionController::API
 
     TUserChannel.where(channelid: params[:s_channel_id], userid: @current_user).update_all(message_count: 0, unread_channel_message: nil)
 
-    # @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
     # @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
     @t_group_message = TGroupMessage.select("groupmsg,
                                             t_group_messages.id as id, 
