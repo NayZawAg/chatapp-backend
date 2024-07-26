@@ -114,7 +114,14 @@ class ApplicationController < ActionController::API
 
   def retrieve_direct_thread(direct_message_id)
     @s_user = MUser.find_by(id: @current_user)
-    @t_direct_message = TDirectMessage.find_by(id: direct_message_id)
+    # @t_direct_message = TDirectMessage.find_by(id: direct_message_id)
+
+    @t_direct_message = TDirectMessage.select("t_direct_messages.id as id, directmsg, t_direct_messages.created_at as created_at, t_direct_messages.draft_message_status as draft_message_status, t_direct_messages.send_user_id as send_user_id, t_direct_messages.receive_user_id as receive_user_id,
+                                                ARRAY_AGG(t_direct_message_files.file) as file_urls, ARRAY_AGG(t_direct_message_files.file_name) as file_names")
+                                                .joins("LEFT JOIN t_direct_message_files ON t_direct_message_files.t_direct_message_id = t_direct_messages.id")
+                                                .where("t_direct_messages.id = ?", direct_message_id)
+                                                .group("t_direct_messages.id")
+                                                .first
 
     m_userss = MUser.find_by(id: @t_direct_message.send_user_id)
     @send_username = m_userss.name
@@ -251,7 +258,15 @@ class ApplicationController < ActionController::API
 
     TUserChannel.where(channelid: params[:s_channel_id], userid: @current_user).update_all(message_count: 0, unread_channel_message: nil)
 
-    @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
+    # @t_group_message = TGroupMessage.find_by(id: params[:s_group_message_id])
+    @t_group_message = TGroupMessage.select("groupmsg, t_group_messages.id as id, t_group_messages.created_at as created_at,
+                                              t_group_messages.m_user_id, t_group_messages.draft_message_status as draft_message_status, ARRAY_AGG(t_group_msg_files.file) as file_urls, ARRAY_AGG(t_group_msg_files.file_name) as file_names")
+                                     .joins("INNER JOIN m_users ON m_users.id = t_group_messages.m_user_id")
+                                     .joins("LEFT JOIN t_group_msg_files ON t_group_msg_files.t_group_message_id = t_group_messages.id")
+                                     .where("t_group_messages.id = ?", params[:s_group_message_id])
+                                     .group("groupmsg, t_group_messages.id, t_group_messages.created_at ")
+                                     .first
+                                     
     @temp_send_user = MUser.find_by(id: @t_group_message.m_user_id)
 
     profile_image_record = MUsersProfileImage.find_by(m_user_id: @t_group_message.m_user_id)
